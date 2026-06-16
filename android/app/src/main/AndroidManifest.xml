@@ -4,6 +4,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:label="Watermelon Vector Converter"
+        android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Watermelon">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
