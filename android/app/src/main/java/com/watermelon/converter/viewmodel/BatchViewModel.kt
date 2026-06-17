@@ -34,8 +34,16 @@ sealed interface BatchUiState {
 
 class BatchViewModel(
     app: Application,
-    private val native: SvgConverter = RealSvgConverter,
+    private val native: SvgConverter,
 ) : AndroidViewModel(app) {
+
+    /**
+     * Constructor used by the Android ViewModel factory (reflection requires a
+     * real (Application) constructor; Kotlin default args don't create one).
+     * Delegates to the injectable constructor with the production bridge.
+     */
+    constructor(app: Application) : this(app, RealSvgConverter)
+
 
     private val repo = FileRepository(app.applicationContext)
     private val _state = MutableStateFlow<BatchUiState>(BatchUiState.Idle)
