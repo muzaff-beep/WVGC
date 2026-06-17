@@ -15,11 +15,10 @@ fn basic_triangle_matches_contract_vector() {
 }
 
 #[test]
-fn gradient_is_rejected_1002() {
-    let svg = br##"<svg viewBox="0 0 10 10"><linearGradient id="g"/><path d="M0 0 L1 1"/></svg>"##;
-    let err = convert_svg(svg).unwrap_err();
-    assert_eq!(err, ConversionError::UnsupportedFeature("linearGradient".into()));
-    assert_eq!(err.code(), 1002);
+fn filter_is_still_rejected_1002() {
+    // gradients are now supported; filters remain out of scope
+    let svg = br##"<svg viewBox="0 0 10 10"><filter id="f"/><path d="M0 0 L1 1"/></svg>"##;
+    assert_eq!(convert_svg(svg).unwrap_err().code(), 1002);
 }
 
 #[test]

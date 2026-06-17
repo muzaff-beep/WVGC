@@ -8,10 +8,14 @@
 use crate::error::ConversionError;
 use crate::models::*;
 use crate::utils::{fmt_num, parse_rgb, to_aarrggbb};
+use crate::shapes;
+use crate::gradients;
+use crate::models::Fill;
+use std::collections::BTreeMap;
+use crate::models::Gradient;
 
 const UNSUPPORTED: &[&str] = &[
-    "linearGradient", "radialGradient", "filter", "text", "tspan",
-    "pattern", "mask", "image", "use", "clipPath",
+    "filter", "text", "tspan", "pattern", "mask", "image", "use", "clipPath",
 ];
 
 pub fn parse(svg_bytes: &[u8]) -> Result<NormalizedSvg, ConversionError> {
@@ -37,9 +41,10 @@ pub fn parse(svg_bytes: &[u8]) -> Result<NormalizedSvg, ConversionError> {
     let height = attr_f32(&root, "height").unwrap_or(vh);
     let root_alpha = attr_f32(&root, "opacity").unwrap_or(1.0);
 
+    let grads = gradients::collect(&doc);
     let mut nodes = Vec::new();
     for child in root.children().filter(|n| n.is_element()) {
-        if let Some(n) = parse_node(&child)? {
+        if let Some(n) = parse_node(&child, &grads)? {
             nodes.push(n);
         }
     }
@@ -67,40 +72,70 @@ fn parse_viewbox(root: &roxmltree::Node) -> Result<(f32, f32), ConversionError> 
     }
 }
 
-fn parse_node(el: &roxmltree::Node) -> Result<Option<Node>, ConversionError> {
-    match el.tag_name().name() {
-        "path" => Ok(Some(Node::Path(parse_path(el)?))),
+fn parse_node(el: &roxmltree::Node, grads: &BTreeMap<String, Gradient>) -> Result<Option<Node>, ConversionError> {
+    let tag = el.tag_name().name();
+    match tag {
+        "path" => {
+            let d = el.attribute("d")
+                .ok_or_else(|| ConversionError::InvalidSvg("<path> missing d".into()))?;
+            let path_data = normalize_path_data(d)?;
+            Ok(Some(Node::Path(style_path(el, path_data, grads)?)))
+        }
         "g" => {
             let mut group = parse_group_transform(el);
             for child in el.children().filter(|n| n.is_element()) {
-                if let Some(n) = parse_node(&child)? {
+                if let Some(n) = parse_node(&child, grads)? {
                     group.children.push(n);
                 }
             }
             Ok(Some(Node::Group(group)))
         }
-        // Basic shapes could be added here; for v1 we focus on path + group.
+        // Tier 1: basic shapes -> path data, then styled like any path.
         "rect" | "circle" | "ellipse" | "line" | "polyline" | "polygon" => {
-            Err(ConversionError::UnsupportedFeature(
-                format!("shape <{}> not yet converted; convert to <path>", el.tag_name().name())
-            ))
+            let raw = match tag {
+                "rect" => shapes::rect_to_path(el),
+                "circle" => shapes::circle_to_path(el),
+                "ellipse" => shapes::ellipse_to_path(el),
+                "line" => shapes::line_to_path(el),
+                "polyline" => shapes::polyline_to_path(el),
+                "polygon" => shapes::polygon_to_path(el),
+                _ => None,
+            };
+            match raw {
+                Some(d) => {
+                    let path_data = normalize_path_data(&d)?;
+                    Ok(Some(Node::Path(style_path(el, path_data, grads)?)))
+                }
+                None => Ok(None), // degenerate shape (e.g. zero size) -> skip
+            }
         }
-        _ => Ok(None), // ignore <title>, <desc>, <defs> wrappers, etc.
+        _ => Ok(None), // ignore <title>, <desc>, <defs>, etc.
     }
 }
 
-fn parse_path(el: &roxmltree::Node) -> Result<VdPath, ConversionError> {
-    let d = el.attribute("d")
-        .ok_or_else(|| ConversionError::InvalidSvg("<path> missing d".into()))?;
-    let path_data = normalize_path_data(d)?;
-
+/// Apply fill/stroke/opacity styling to an already-normalized path-data string.
+fn style_path(el: &roxmltree::Node, path_data: String, grads: &BTreeMap<String, Gradient>)
+    -> Result<VdPath, ConversionError>
+{
     let opacity = attr_f32(el, "opacity").unwrap_or(1.0);
     let fill_opacity = attr_f32(el, "fill-opacity").unwrap_or(1.0) * opacity;
     let stroke_opacity = attr_f32(el, "stroke-opacity").unwrap_or(1.0) * opacity;
 
-    // SVG default fill is black; explicit "none" disables.
+    // SVG default fill is black; "none" disables; url(#id) is a gradient.
     let fill_raw = el.attribute("fill").unwrap_or("black");
-    let fill_color = parse_rgb(fill_raw).map(|rgb| to_aarrggbb(rgb, fill_opacity));
+    let fill = if fill_raw.trim().eq_ignore_ascii_case("none") {
+        Fill::None
+    } else if let Some(id) = gradients::url_ref(fill_raw) {
+        match grads.get(id) {
+            Some(g) => Fill::Gradient(g.clone()),
+            None => Fill::None, // dangling reference -> nothing drawn (don't crash)
+        }
+    } else {
+        match parse_rgb(fill_raw) {
+            Some(rgb) => Fill::Solid(to_aarrggbb(rgb, fill_opacity)),
+            None => Fill::None,
+        }
+    };
 
     let stroke_color = el.attribute("stroke")
         .and_then(parse_rgb)
@@ -112,7 +147,7 @@ fn parse_path(el: &roxmltree::Node) -> Result<VdPath, ConversionError> {
         _ => FillType::NonZero,
     };
 
-    Ok(VdPath { path_data, fill_color, stroke_color, stroke_width, fill_type })
+    Ok(VdPath { path_data, fill, stroke_color, stroke_width, fill_type })
 }
 
 fn parse_group_transform(el: &roxmltree::Node) -> VdGroup {
@@ -162,6 +197,8 @@ fn normalize_path_data(d: &str) -> Result<String, ConversionError> {
     let mut i = 0;
     let (mut cx, mut cy) = (0.0f32, 0.0f32);   // current point
     let (mut sx, mut sy) = (0.0f32, 0.0f32);   // subpath start
+    // last control point of the previous C/S (for S) and Q/T (for T) reflection
+    let (mut last_cubic_ctrl, mut last_quad_ctrl): (Option<(f32, f32)>, Option<(f32, f32)>) = (None, None);
     let mut last_cmd = ' ';
 
     macro_rules! num { () => {{
@@ -173,16 +210,27 @@ fn normalize_path_data(d: &str) -> Result<String, ConversionError> {
     while i < tokens.len() {
         let cmd = match &tokens[i] {
             Token::Cmd(c) => { i += 1; last_cmd = *c; *c }
-            Token::Num(_) => implicit_cmd(last_cmd), // implicit repeat
+            Token::Num(_) => implicit_cmd(last_cmd),
         };
         let abs = cmd.is_ascii_uppercase();
-        match cmd.to_ascii_uppercase() {
+        let upper = cmd.to_ascii_uppercase();
+        // Any command other than C/S clears the cubic reflection point; other
+        // than Q/T clears the quad one.
+        match upper {
+            'C' | 'S' => {}
+            _ => last_cubic_ctrl = None,
+        }
+        match upper {
+            'Q' | 'T' => {}
+            _ => last_quad_ctrl = None,
+        }
+        match upper {
             'M' => {
                 let (mut x, mut y) = (num!(), num!());
                 if !abs { x += cx; y += cy; }
                 cx = x; cy = y; sx = x; sy = y;
                 out.push_str(&format!("M{},{} ", fmt_num(x), fmt_num(y)));
-                last_cmd = if abs { 'L' } else { 'l' }; // subsequent pairs are line-to
+                last_cmd = if abs { 'L' } else { 'l' };
             }
             'L' => {
                 let (mut x, mut y) = (num!(), num!());
@@ -203,24 +251,70 @@ fn normalize_path_data(d: &str) -> Result<String, ConversionError> {
             'C' => {
                 let mut c = [0f32; 6];
                 for k in 0..6 { c[k] = num!(); if !abs { c[k] += if k % 2 == 0 { cx } else { cy }; } }
+                last_cubic_ctrl = Some((c[2], c[3]));
                 cx = c[4]; cy = c[5];
                 out.push_str(&format!("C{},{} {},{} {},{} ",
                     fmt_num(c[0]), fmt_num(c[1]), fmt_num(c[2]), fmt_num(c[3]), fmt_num(c[4]), fmt_num(c[5])));
             }
+            'S' => {
+                // smooth cubic: first control = reflection of previous cubic ctrl
+                let mut p = [0f32; 4];
+                for k in 0..4 { p[k] = num!(); if !abs { p[k] += if k % 2 == 0 { cx } else { cy }; } }
+                let (rx, ry) = match last_cubic_ctrl {
+                    Some((px, py)) => (2.0 * cx - px, 2.0 * cy - py),
+                    None => (cx, cy), // no previous cubic: first ctrl = current point
+                };
+                last_cubic_ctrl = Some((p[0], p[1]));
+                cx = p[2]; cy = p[3];
+                out.push_str(&format!("C{},{} {},{} {},{} ",
+                    fmt_num(rx), fmt_num(ry), fmt_num(p[0]), fmt_num(p[1]), fmt_num(p[2]), fmt_num(p[3])));
+            }
             'Q' => {
                 let mut c = [0f32; 4];
                 for k in 0..4 { c[k] = num!(); if !abs { c[k] += if k % 2 == 0 { cx } else { cy }; } }
+                last_quad_ctrl = Some((c[0], c[1]));
                 cx = c[2]; cy = c[3];
                 out.push_str(&format!("Q{},{} {},{} ",
                     fmt_num(c[0]), fmt_num(c[1]), fmt_num(c[2]), fmt_num(c[3])));
+            }
+            'T' => {
+                // smooth quad: control = reflection of previous quad ctrl
+                let mut p = [0f32; 2];
+                for k in 0..2 { p[k] = num!(); if !abs { p[k] += if k % 2 == 0 { cx } else { cy }; } }
+                let (qx, qy) = match last_quad_ctrl {
+                    Some((px, py)) => (2.0 * cx - px, 2.0 * cy - py),
+                    None => (cx, cy),
+                };
+                last_quad_ctrl = Some((qx, qy));
+                out.push_str(&format!("Q{},{} {},{} ",
+                    fmt_num(qx), fmt_num(qy), fmt_num(p[0]), fmt_num(p[1])));
+                cx = p[0]; cy = p[1];
+            }
+            'A' => {
+                // elliptical arc -> cubic Beziers (Tier 2)
+                let rx = num!(); let ry = num!(); let rot = num!();
+                let large = num!() != 0.0; let sweep = num!() != 0.0;
+                let (mut x, mut y) = (num!(), num!());
+                if !abs { x += cx; y += cy; }
+                let cubics = crate::arc::arc_to_cubics(
+                    cx as f64, cy as f64, rx as f64, ry as f64, rot as f64,
+                    large, sweep, x as f64, y as f64,
+                );
+                for c in cubics {
+                    out.push_str(&format!("C{},{} {},{} {},{} ",
+                        fmt_num(c[0] as f32), fmt_num(c[1] as f32),
+                        fmt_num(c[2] as f32), fmt_num(c[3] as f32),
+                        fmt_num(c[4] as f32), fmt_num(c[5] as f32)));
+                }
+                cx = x; cy = y;
             }
             'Z' => {
                 cx = sx; cy = sy;
                 out.push_str("Z ");
             }
             other => {
-                return Err(ConversionError::UnsupportedFeature(
-                    format!("path command '{other}' (S/T/A arcs not in v1 scope)")));
+                return Err(ConversionError::InvalidSvg(
+                    format!("unknown path command '{other}'")));
             }
         }
     }

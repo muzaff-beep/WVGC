@@ -8,10 +8,12 @@ use crate::models::*;
 use crate::utils::fmt_num;
 
 const NS: &str = "http://schemas.android.com/apk/res/android";
+const AAPT: &str = "http://schemas.android.com/aapt";
 
 pub fn emit(svg: &NormalizedSvg) -> String {
     let mut s = String::new();
     s.push_str(&format!("<vector xmlns:android=\"{NS}\"\n"));
+    s.push_str(&format!("    xmlns:aapt=\"{AAPT}\"\n"));
     s.push_str(&format!("    android:width=\"{}dp\"\n", fmt_num(svg.width)));
     s.push_str(&format!("    android:height=\"{}dp\"\n", fmt_num(svg.height)));
     s.push_str(&format!("    android:viewportWidth=\"{}\"\n", fmt_num(svg.viewport_w)));
@@ -55,9 +57,13 @@ fn emit_group(g: &VdGroup, level: usize, s: &mut String) {
 
 fn emit_path(p: &VdPath, level: usize, s: &mut String) {
     let pad = indent(level);
+    let has_gradient = matches!(p.fill, Fill::Gradient(_));
+
     s.push_str(&format!("{pad}<path\n"));
     s.push_str(&format!("{pad}    android:pathData=\"{}\"", p.path_data));
-    if let Some(fc) = &p.fill_color {
+
+    // Solid fill as attribute; gradient fill goes in a child element below.
+    if let Fill::Solid(fc) = &p.fill {
         s.push_str(&format!("\n{pad}    android:fillColor=\"{}\"", fc));
     }
     if let Some(sc) = &p.stroke_color {
@@ -68,5 +74,50 @@ fn emit_path(p: &VdPath, level: usize, s: &mut String) {
     }
     let ft = match p.fill_type { FillType::NonZero => "nonZero", FillType::EvenOdd => "evenOdd" };
     s.push_str(&format!("\n{pad}    android:fillType=\"{}\"", ft));
-    s.push_str("/>\n");
+
+    if has_gradient {
+        s.push_str(">\n");
+        if let Fill::Gradient(g) = &p.fill {
+            emit_gradient(g, level + 1, s);
+        }
+        s.push_str(&format!("{pad}</path>\n"));
+    } else {
+        s.push_str("/>\n");
+    }
+}
+
+fn emit_gradient(g: &Gradient, level: usize, s: &mut String) {
+    let pad = indent(level);
+    let ipad = indent(level + 1);
+    s.push_str(&format!("{pad}<aapt:attr name=\"android:fillColor\">\n"));
+    match g {
+        Gradient::Linear { x1, y1, x2, y2, stops } => {
+            s.push_str(&format!("{ipad}<gradient\n"));
+            s.push_str(&format!("{ipad}    android:type=\"linear\"\n"));
+            s.push_str(&format!("{ipad}    android:startX=\"{}\"\n", fmt_num(*x1)));
+            s.push_str(&format!("{ipad}    android:startY=\"{}\"\n", fmt_num(*y1)));
+            s.push_str(&format!("{ipad}    android:endX=\"{}\"\n", fmt_num(*x2)));
+            s.push_str(&format!("{ipad}    android:endY=\"{}\">\n", fmt_num(*y2)));
+            emit_stops(stops, level + 2, s);
+            s.push_str(&format!("{ipad}</gradient>\n"));
+        }
+        Gradient::Radial { cx, cy, r, stops } => {
+            s.push_str(&format!("{ipad}<gradient\n"));
+            s.push_str(&format!("{ipad}    android:type=\"radial\"\n"));
+            s.push_str(&format!("{ipad}    android:centerX=\"{}\"\n", fmt_num(*cx)));
+            s.push_str(&format!("{ipad}    android:centerY=\"{}\"\n", fmt_num(*cy)));
+            s.push_str(&format!("{ipad}    android:gradientRadius=\"{}\">\n", fmt_num(*r)));
+            emit_stops(stops, level + 2, s);
+            s.push_str(&format!("{ipad}</gradient>\n"));
+        }
+    }
+    s.push_str(&format!("{pad}</aapt:attr>\n"));
+}
+
+fn emit_stops(stops: &[GradientStop], level: usize, s: &mut String) {
+    let pad = indent(level);
+    for st in stops {
+        s.push_str(&format!("{pad}<item android:offset=\"{}\" android:color=\"{}\"/>\n",
+            fmt_num(st.offset), st.color));
+    }
 }

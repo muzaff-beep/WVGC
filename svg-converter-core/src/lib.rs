@@ -11,11 +11,13 @@
 pub mod error;
 pub mod models;
 pub mod svg_parser;
+pub mod shapes;
+pub mod arc;
+pub mod gradients;
 pub mod vector_drawable;
 pub mod utils;
 pub mod image_export;
 pub mod batch_processor;
-pub mod jni;
 
 pub use error::ConversionError;
 

@@ -47,11 +47,31 @@ impl Default for VdGroup {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FillType { NonZero, EvenOdd }
 
+/// A gradient color stop: offset 0..1 and #AARRGGBB color.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GradientStop {
+    pub offset: f32,
+    pub color: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Gradient {
+    Linear { x1: f32, y1: f32, x2: f32, y2: f32, stops: Vec<GradientStop> },
+    Radial { cx: f32, cy: f32, r: f32, stops: Vec<GradientStop> },
+}
+
+/// A fill is either a solid color, a gradient, or none.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Fill {
+    None,
+    Solid(String),        // #AARRGGBB
+    Gradient(Gradient),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct VdPath {
     pub path_data: String,
-    /// #AARRGGBB or None (no fill).
-    pub fill_color: Option<String>,
+    pub fill: Fill,
     pub stroke_color: Option<String>,
     pub stroke_width: f32,
     pub fill_type: FillType,
