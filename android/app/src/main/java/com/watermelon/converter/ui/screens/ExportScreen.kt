@@ -36,7 +36,7 @@ fun ExportScreen(
         ActivityResultContracts.OpenDocumentTree()
     ) { treeUri ->
         if (treeUri != null) {
-            (convState as? ConvertUiState.Done)?.let { convVm.export(treeUri, it.sourceName) }
+            if (convState is ConvertUiState.Done) convVm.export(treeUri)
             if (batchState is BatchUiState.Done) batchVm.export(treeUri)
         }
     }
