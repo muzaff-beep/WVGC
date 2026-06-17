@@ -15,13 +15,13 @@
 //! This module is compiled only for Android targets.
 #![cfg(target_os = "android")]
 
-use crate::batch_processor::{convert_zip, CancelFlag, ProgressEvent};
+use crate::batch_processor::{convert_zip, ProgressEvent};
 use crate::error::ConversionError;
 use crate::image_export::{render_svg_preview, render_vd_preview};
 use crate::convert_svg;
 
-use jni::objects::{JByteArray, JClass, JObject, JString, JValue};
-use jni::sys::{jbyteArray, jint, jstring};
+use jni::objects::{JByteArray, JClass, JObject, JString, JThrowable, JValue};
+use jni::sys::{jbyteArray, jint, jobject, jstring};
 use jni::JNIEnv;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -30,13 +30,36 @@ const EXCEPTION_CLASS: &str = "com/watermelon/converter/jni/ConversionException"
 /// Process-wide cancel flag, shared between a running batch and nativeCancel().
 static CANCEL: AtomicBool = AtomicBool::new(false);
 
+// SAFETY: nativeConvertZip is called synchronously from a single JNI thread.
+// convert_zip's coordinator (the only caller of the sink) runs on THIS same
+// thread via std::thread::scope, so these raw handles are only ever
+// dereferenced from the thread that owns the JNIEnv for the duration of this
+// call — satisfying the invariant despite the wrapper asserting Send + Sync.
+struct SendSyncEnvPtr(*mut jni::sys::JNIEnv);
+unsafe impl Send for SendSyncEnvPtr {}
+unsafe impl Sync for SendSyncEnvPtr {}
+impl SendSyncEnvPtr {
+    // A method call (rather than a bare `.0` field access) makes the closure
+    // below capture this whole wrapper, not just the raw-pointer field —
+    // otherwise Rust 2021's disjoint closure capture would capture the
+    // field's bare pointer type directly, which isn't Send/Sync.
+    fn get(&self) -> *mut jni::sys::JNIEnv { self.0 }
+}
+
+struct SendSyncObjPtr(jobject);
+unsafe impl Send for SendSyncObjPtr {}
+unsafe impl Sync for SendSyncObjPtr {}
+impl SendSyncObjPtr {
+    fn get(&self) -> jobject { self.0 }
+}
+
 /// Throw com.watermelon.converter.jni.ConversionException(code, message).
 /// Never returns a value to Java on error; the pending exception is what Java sees.
 fn throw_conversion(env: &mut JNIEnv, err: &ConversionError) {
     // Construct the exception object with (int, String) so the Kotlin side
     // can read .code. Fall back to a plain throw if construction fails.
     let msg = env.new_string(err.to_string()).ok();
-    let built = match (env.find_class(EXCEPTION_CLASS), msg.as_ref()) {
+    let built = match (env.find_class(EXCEPTION_CLASS), msg) {
         (Ok(cls), Some(m)) => env
             .new_object(
                 cls,
@@ -47,7 +70,7 @@ fn throw_conversion(env: &mut JNIEnv, err: &ConversionError) {
         _ => None,
     };
     if let Some(obj) = built {
-        let _ = env.throw(jni::objects::JThrowable::from(obj));
+        let _ = env.throw(JThrowable::from(obj));
     } else {
         let _ = env.throw_new(EXCEPTION_CLASS, err.to_string());
     }
@@ -131,23 +154,20 @@ pub extern "system" fn Java_com_watermelon_converter_jni_SvgConverterNative_nati
 
     let bytes = match bytes_from(&mut env, &zip) { Ok(b) => b, Err(e) => { throw_conversion(&mut env, &e); return null; } };
 
-    // The progress sink calls back into Java on the coordinator thread (this one).
-    // We use a Cell of the env via raw pointer is unsafe; instead route through a
-    // RefCell-guarded closure capturing &mut env is not possible across the Fn
-    // bound. Practical approach: collect progress markers is the safe default,
-    // but the contract wants live callbacks. We therefore call back using a
-    // short-lived JNIEnv obtained per event is overkill on one thread; instead
-    // we capture a raw JNIEnv pointer known-valid for this synchronous call.
-    let env_ptr: *mut jni::sys::JNIEnv = env.get_raw();
-    let cb_ref = &cb;
+    // Wrap the raw handles so the closure can satisfy Send + Sync. cb.as_raw()
+    // returns the real underlying jobject handle (documented API), not the
+    // address of the JObject wrapper.
+    let env_ptr = SendSyncEnvPtr(env.get_raw());
+    let cb_raw = SendSyncObjPtr(cb.as_raw());
 
     let sink = move |ev: ProgressEvent| {
         // SAFETY: convert_zip's coordinator invokes the sink synchronously on
         // the same thread that owns `env` for the duration of this JNI call.
-        let mut env = unsafe { JNIEnv::from_raw(env_ptr).expect("valid env") };
+        let mut env = unsafe { JNIEnv::from_raw(env_ptr.get()).expect("valid env") };
+        let cb_obj = unsafe { JObject::from_raw(cb_raw.get()) };
         if let Ok(name) = env.new_string(&ev.current_name) {
             let _ = env.call_method(
-                cb_ref,
+                &cb_obj,
                 "onProgress",
                 "(IILjava/lang/String;)V",
                 &[
