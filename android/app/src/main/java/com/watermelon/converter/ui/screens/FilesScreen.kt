@@ -190,7 +190,6 @@ private fun PreviewPane(
             Text(
                 when (state) {
                     is PreviewState.SvgImage -> state.name
-                    is PreviewState.XmlDrawable -> state.name
                     is PreviewState.Failed -> state.name
                     else -> "Preview"
                 },
@@ -236,23 +235,7 @@ private fun PreviewContent(state: PreviewState) {
             if (bmp != null) Image(bmp.asImageBitmap(), contentDescription = state.name)
             else Text("Could not decode preview")
         }
-        is PreviewState.XmlDrawable -> XmlDrawablePreview(state.xml)
         is PreviewState.Failed -> Text(state.message, color = MaterialTheme.colorScheme.error)
         PreviewState.Empty -> {}
-    }
-}
-
-/** Render an Android VectorDrawable XML via the platform inflater. */
-@Composable
-private fun XmlDrawablePreview(xml: String) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val bitmap = remember(xml) {
-        runCatching { com.watermelon.converter.util.DrawableRenderer.renderVectorXml(ctx, xml, 512) }.getOrNull()
-    }
-    if (bitmap != null) {
-        Image(bitmap.asImageBitmap(), contentDescription = "drawable preview")
-    } else {
-        Text("Can't preview this XML as a drawable.\nIt may not be an Android VectorDrawable.",
-            style = MaterialTheme.typography.bodyLarge)
     }
 }
