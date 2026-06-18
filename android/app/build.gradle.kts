@@ -25,7 +25,7 @@ android {
         abi {
             isEnable = true
             reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            include("arm64-v8a")
             isUniversalApk = false
         }
     }
@@ -43,13 +43,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 
     // Where cargo-ndk places the built .so files.
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
-}
-
-kotlin {
-    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
 dependencies {
@@ -79,13 +76,13 @@ dependencies {
 }
 
 // --- cargo-ndk hook: build the Rust core .so before packaging ---
-// Requires: rustup targets aarch64-linux-android, armv7-linux-androideabi
+// Requires: rustup target aarch64-linux-android
 //           and `cargo install cargo-ndk`.
 val cargoNdkBuild by tasks.registering(Exec::class) {
     workingDir = rootDir.parentFile.resolve("svg-converter-core")
     commandLine(
         "cargo", "ndk",
-        "-t", "arm64-v8a", "-t", "armeabi-v7a",
+        "-t", "arm64-v8a",
         "-o", "${projectDir}/src/main/jniLibs",
         "build", "--release"
     )
