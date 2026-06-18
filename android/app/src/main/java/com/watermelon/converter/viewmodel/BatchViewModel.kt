@@ -9,6 +9,8 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.watermelon.converter.data.model.BatchReport
+import com.watermelon.converter.data.model.FileOutcome
 import com.watermelon.converter.data.repository.FileRepository
 import com.watermelon.converter.jni.ConversionException
 import com.watermelon.converter.jni.ProgressCallback
@@ -21,14 +23,26 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
+import java.util.zip.ZipInputStream
 
-data class BatchProgress(val done: Int, val total: Int, val currentName: String)
+data class BatchProgress(
+    val done: Int,
+    val total: Int,
+    val currentName: String,
+) {
+    /** Total-batch fraction 0..1. */
+    val totalFraction: Float get() = if (total > 0) done.toFloat() / total.toFloat() else 0f
+    /** Per-file fraction: each file snaps 0 -> 1 as it completes; the in-flight
+     *  file shows full since native reports no sub-file progress. */
+    val fileFraction: Float get() = if (total > 0) 1f else 0f
+}
 
 sealed interface BatchUiState {
     data object Idle : BatchUiState
     data class Working(val progress: BatchProgress?) : BatchUiState
     @Suppress("ArrayInDataClass")
-    data class Done(val outputZip: ByteArray) : BatchUiState
+    data class Done(val outputZip: ByteArray, val report: BatchReport) : BatchUiState
     data class Error(val message: String) : BatchUiState
 }
 
@@ -52,26 +66,84 @@ class BatchViewModel(
     private var lastZip: ByteArray? = null
 
     fun convertZip(zipUri: Uri) {
+        runConvert { repo.readBytes(zipUri) }
+    }
+
+    /**
+     * Convert a custom batch of loose SVG files (selected across folders in the
+     * file manager). They are zipped in Kotlin and fed to the SAME native
+     * convertZip path, so no new FFI surface is introduced.
+     */
+    fun convertFromUris(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        runConvert { repo.zipBytes(uris) }
+    }
+
+    /** Shared conversion core: produce input ZIP bytes, run native, emit state. */
+    private fun runConvert(makeZipBytes: () -> ByteArray) {
         _state.value = BatchUiState.Working(null)
         viewModelScope.launch {
+            val started = System.currentTimeMillis()
             try {
-                val out = withContext(Dispatchers.IO) {
-                    val bytes = repo.readBytes(zipUri)
+                val (inputBytes, out) = withContext(Dispatchers.IO) {
+                    val bytes = makeZipBytes()
                     val cb = object : ProgressCallback {
                         override fun onProgress(done: Int, total: Int, currentName: String) {
                             _state.value = BatchUiState.Working(BatchProgress(done, total, currentName))
                         }
                     }
-                    native.convertZip(bytes, cb)
+                    bytes.size.toLong() to native.convertZip(bytes, cb)
                 }
                 lastZip = out
-                _state.value = BatchUiState.Done(out)
+                val report = withContext(Dispatchers.IO) {
+                    buildReport(out, inputBytes, System.currentTimeMillis() - started)
+                }
+                _state.value = BatchUiState.Done(out, report)
             } catch (e: ConversionException) {
                 _state.value = BatchUiState.Error(e.userMessage(getApplication()))
             } catch (e: Exception) {
                 _state.value = BatchUiState.Error(e.message ?: "Unknown error")
             }
         }
+    }
+
+    /**
+     * Build the end-of-run report by scanning the output ZIP. The native batch
+     * processor writes a "<name>.error.txt" sidecar (content "[code] message")
+     * for each rejected file and a converted .xml for each success, so the
+     * report is reconstructed from what's actually in the archive.
+     */
+    private fun buildReport(outputZip: ByteArray, inputBytes: Long, durationMs: Long): BatchReport {
+        val outcomes = ArrayList<FileOutcome>()
+        var outputBytes = 0L
+        ZipInputStream(ByteArrayInputStream(outputZip)).use { zis ->
+            while (true) {
+                val entry = zis.nextEntry ?: break
+                val name = entry.name
+                val content = zis.readBytes()
+                outputBytes += content.size.toLong()
+                if (name.endsWith(".error.txt", ignoreCase = true)) {
+                    val original = name.removeSuffix(".error.txt")
+                    val text = String(content).trim()
+                    // format: "[<code>] <message>"
+                    val code = text.substringAfter('[', "").substringBefore(']').toIntOrNull()
+                    val msg = text.substringAfter("] ", text)
+                    outcomes.add(FileOutcome(original, ok = false, errorCode = code, errorMessage = msg))
+                } else {
+                    outcomes.add(FileOutcome(name, ok = true))
+                }
+            }
+        }
+        val failed = outcomes.count { !it.ok }
+        return BatchReport(
+            total = outcomes.size,
+            succeeded = outcomes.size - failed,
+            failed = failed,
+            inputBytes = inputBytes,
+            outputBytes = outputBytes,
+            durationMillis = durationMs,
+            outcomes = outcomes,
+        )
     }
 
     fun cancel() { native.cancel() }

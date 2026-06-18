@@ -18,6 +18,7 @@ import com.watermelon.converter.Routes
 import com.watermelon.converter.ui.sharedGraphViewModel
 import com.watermelon.converter.viewmodel.BatchUiState
 import com.watermelon.converter.viewmodel.BatchViewModel
+import com.watermelon.converter.ui.components.SeedBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +29,7 @@ fun BatchScreen(nav: NavController, vm: BatchViewModel = nav.sharedGraphViewMode
     ) { uri -> if (uri != null) vm.convertZip(uri) }
 
     LaunchedEffect(state) {
-        if (state is BatchUiState.Done) nav.navigate(Routes.EXPORT)
+        if (state is BatchUiState.Done) nav.navigate(Routes.REPORT)
     }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Batch convert") }) }) { pad ->
@@ -41,15 +42,26 @@ fun BatchScreen(nav: NavController, vm: BatchViewModel = nav.sharedGraphViewMode
                 is BatchUiState.Working -> {
                     val p = s.progress
                     if (p != null && p.total > 0) {
-                        LinearProgressIndicator(
-                            progress = { p.done.toFloat() / p.total.toFloat() },
-                            modifier = Modifier.fillMaxWidth(),
+                        // current file (snaps 0->100% per file) then total batch
+                        SeedBar(
+                            progress = p.fileFraction,
+                            label = "Current: ${p.currentName}",
                         )
-                        Text("${p.done} / ${p.total}  ·  ${p.currentName}")
+                        Spacer(Modifier.height(20.dp))
+                        SeedBar(
+                            progress = p.totalFraction,
+                            label = "Total batch",
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "${p.done} of ${p.total} files",
+                            style = MaterialTheme.typography.titleLarge,
+                        )
                     } else {
                         CircularProgressIndicator()
                         Text("Reading archive…")
                     }
+                    Spacer(Modifier.height(12.dp))
                     OutlinedButton(onClick = { vm.cancel() }) { Text("Cancel") }
                 }
                 is BatchUiState.Error -> {

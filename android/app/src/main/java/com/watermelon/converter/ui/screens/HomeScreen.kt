@@ -22,6 +22,7 @@ fun HomeScreen(nav: NavController) {
         TopAppBar(
             title = { Text("Watermelon Vector Converter") },
             actions = {
+                TextButton(onClick = { nav.navigate(Routes.FILES) }) { Text("Files") }
                 TextButton(onClick = { nav.navigate(Routes.HISTORY) }) { Text("History") }
                 TextButton(onClick = { nav.navigate(Routes.SETTINGS) }) { Text("Settings") }
             },

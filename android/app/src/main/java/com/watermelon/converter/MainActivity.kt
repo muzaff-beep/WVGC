@@ -61,6 +61,8 @@ object Routes {
     const val EXPORT = "export"
     const val SETTINGS = "settings"
     const val HISTORY = "history"
+    const val FILES = "files"
+    const val REPORT = "report"
 }
 
 @androidx.compose.runtime.Composable
@@ -74,5 +76,7 @@ fun AppNavHost() {
         composable(Routes.EXPORT) { ExportScreen(nav) }
         composable(Routes.SETTINGS) { SettingsScreen(nav) }
         composable(Routes.HISTORY) { HistoryScreen(nav) }
+        composable(Routes.FILES) { FilesScreen(nav) }
+        composable(Routes.REPORT) { ReportScreen(nav) }
     }
 }

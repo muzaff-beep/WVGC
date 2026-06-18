@@ -9,6 +9,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /** SAF-based file IO. Reads bytes in Kotlin and hands ByteArray to native
  *  (never a content:// URI). Writes outputs back through SAF. (Contract C-3 handoff) */
@@ -49,4 +51,33 @@ class FileRepository(private val context: Context) {
     /** Best-effort display name for a content uri. */
     fun displayName(uri: Uri): String =
         DocumentFile.fromSingleUri(context, uri)?.name ?: "image.svg"
+
+    /**
+     * Build an in-memory ZIP from a list of document uris. Used to feed the
+     * native convertZip path with a custom batch of loose SVG files selected
+     * across folders in the file manager. Duplicate names are disambiguated.
+     */
+    fun zipBytes(uris: List<Uri>): ByteArray {
+        val out = ByteArrayOutputStream()
+        val used = HashSet<String>()
+        ZipOutputStream(out).use { zos ->
+            for (uri in uris) {
+                var name = displayName(uri)
+                // ensure unique entry names
+                if (!used.add(name)) {
+                    val base = name.substringBeforeLast('.', name)
+                    val ext = name.substringAfterLast('.', "")
+                    var i = 1
+                    do {
+                        name = if (ext.isEmpty()) "${base}_$i" else "${base}_$i.$ext"
+                        i++
+                    } while (!used.add(name))
+                }
+                zos.putNextEntry(ZipEntry(name))
+                zos.write(readBytes(uri))
+                zos.closeEntry()
+            }
+        }
+        return out.toByteArray()
+    }
 }
