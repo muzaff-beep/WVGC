@@ -3,168 +3,130 @@
 // Proprietary and source-available. Reuse prohibited without written permission.
 // See LICENSE for terms.
 
-package com.watermelon.converter.viewmodel
+package com.watermelon.converter.ui.screens
 
-import android.app.Application
-import android.net.Uri
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-import com.watermelon.converter.data.files.FileKind
-import com.watermelon.converter.data.files.FileNode
-import com.watermelon.converter.data.files.FileTreeRepository
-import com.watermelon.converter.data.files.TypeFilter
-import com.watermelon.converter.data.repository.FileRepository
-import com.watermelon.converter.jni.RealSvgConverter
-import com.watermelon.converter.jni.SvgConverter
-import com.watermelon.converter.logging.AppLogger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.item
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.watermelon.converter.Routes
+import com.watermelon.converter.data.model.BatchReport
+import com.watermelon.converter.ui.components.SeedBar
+import com.watermelon.converter.ui.sharedGraphViewModel
+import com.watermelon.converter.ui.theme.FreshTeal
+import com.watermelon.converter.ui.theme.WatermelonRed
+import com.watermelon.converter.viewmodel.BatchUiState
+import com.watermelon.converter.viewmodel.BatchViewModel
 
-/** A row in the flattened, indented tree view. */
-data class TreeRow(
-    val node: FileNode,
-    val depth: Int,
-    val expanded: Boolean,
-)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReportScreen(nav: NavController, vm: BatchViewModel = nav.sharedGraphViewModel()) {
+    val state by vm.state.collectAsState()
+    val report = (state as? BatchUiState.Done)?.report
 
-/** Preview content for the docked pane. */
-sealed interface PreviewState {
-    data object Empty : PreviewState
-    data object Loading : PreviewState
-    @Suppress("ArrayInDataClass")
-    data class SvgImage(val name: String, val png: ByteArray) : PreviewState
-    data class XmlDrawable(val name: String, val xml: String) : PreviewState
-    data class Failed(val name: String, val message: String) : PreviewState
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Conversion report") }) },
+        bottomBar = {
+            if (report != null) {
+                BottomAppBar {
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = {
+                        vm.reset()
+                        nav.navigate(Routes.HOME) { popUpTo(Routes.HOME) { inclusive = true } }
+                    }) { Text("Done") }
+                    Button(
+                        onClick = { nav.navigate(Routes.EXPORT) },
+                        modifier = Modifier.padding(end = 12.dp),
+                    ) { Text("Export ZIP") }
+                }
+            }
+        },
+    ) { pad ->
+        if (report == null) {
+            Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
+                Text("No report available.")
+            }
+            return@Scaffold
+        }
+        LazyColumn(
+            Modifier.fillMaxSize().padding(pad).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                val rate = if (report.total > 0) report.succeeded.toFloat() / report.total else 0f
+                SeedBar(progress = rate, label = "Success rate")
+                Spacer(Modifier.height(12.dp))
+            }
+            item { SummaryGrid(report) }
+            if (report.rejected.isNotEmpty()) {
+                item {
+                    Text(
+                        "Rejected files (${report.rejected.size})",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = WatermelonRed,
+                    )
+                }
+                items(report.rejected, key = { it.name }) { f ->
+                    ListItem(
+                        headlineContent = { Text(f.name) },
+                        supportingContent = {
+                            Text(buildString {
+                                f.errorCode?.let { append("[$it] ") }
+                                append(f.errorMessage ?: "unknown reason")
+                            })
+                        },
+                    )
+                    HorizontalDivider()
+                }
+            } else {
+                item {
+                    Text(
+                        "All files converted successfully.",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = FreshTeal,
+                    )
+                }
+            }
+        }
+    }
 }
 
-class FileManagerViewModel(
-    app: Application,
-    private val native: SvgConverter,
-) : AndroidViewModel(app) {
-
-    constructor(app: Application) : this(app, RealSvgConverter)
-
-    private val files = FileTreeRepository(app.applicationContext)
-    private val io = FileRepository(app.applicationContext)
-
-    private val _root = MutableStateFlow<Uri?>(null)
-    val root: StateFlow<Uri?> = _root.asStateFlow()
-
-    private val _filter = MutableStateFlow(TypeFilter())
-    val filter: StateFlow<TypeFilter> = _filter.asStateFlow()
-
-    private val _rows = MutableStateFlow<List<TreeRow>>(emptyList())
-    val rows: StateFlow<List<TreeRow>> = _rows.asStateFlow()
-
-    private val _selected = MutableStateFlow<Set<String>>(emptySet()) // doc uris (for batch)
-    val selected: StateFlow<Set<String>> = _selected.asStateFlow()
-
-    private val _preview = MutableStateFlow<PreviewState>(PreviewState.Empty)
-    val preview: StateFlow<PreviewState> = _preview.asStateFlow()
-
-    // expansion state + cached children per directory uri
-    private val expanded = LinkedHashSet<String>()
-    private val childrenCache = HashMap<String, List<FileNode>>()
-
-    init {
-        files.persistedRoots().firstOrNull()?.let { openRoot(it, alreadyPersisted = true) }
+@Composable
+private fun SummaryGrid(report: BatchReport) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        StatRow("Total files", report.total.toString())
+        StatRow("Succeeded", report.succeeded.toString())
+        StatRow("Failed", report.failed.toString())
+        StatRow("Input size", humanSize(report.inputBytes))
+        StatRow("Output size", humanSize(report.outputBytes))
+        StatRow("Time", formatDuration(report.durationMillis))
     }
+}
 
-    fun openRoot(treeUri: Uri, alreadyPersisted: Boolean = false) {
-        if (!alreadyPersisted) files.persistTreePermission(treeUri)
-        _root.value = treeUri
-        expanded.clear()
-        childrenCache.clear()
-        rebuild()
+@Composable
+private fun StatRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(label, modifier = Modifier.weight(1f), color = FreshTeal)
+        Text(value, fontWeight = FontWeight.SemiBold)
     }
+}
 
-    fun setFilter(showSvg: Boolean, showXml: Boolean) {
-        _filter.value = TypeFilter(showSvg, showXml)
-        rebuild()
-    }
+private fun humanSize(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val kb = bytes / 1024.0
+    if (kb < 1024) return String.format("%.1f KB", kb)
+    return String.format("%.2f MB", kb / 1024.0)
+}
 
-    fun toggleDir(node: FileNode) {
-        val key = node.uri.toString()
-        if (expanded.contains(key)) expanded.remove(key) else expanded.add(key)
-        rebuild()
-    }
-
-    fun toggleSelect(node: FileNode) {
-        val key = node.uri.toString()
-        _selected.value = _selected.value.toMutableSet().apply {
-            if (contains(key)) remove(key) else add(key)
-        }
-    }
-
-    fun clearSelection() { _selected.value = emptySet() }
-
-    /** Uris currently selected for a custom batch (SVG only — what convert accepts). */
-    fun selectedSvgUris(): List<Uri> {
-        val keys = _selected.value
-        return flatten().mapNotNull { it.node }
-            .filter { keys.contains(it.uri.toString()) && it.kind == FileKind.Svg }
-            .map { it.uri }
-    }
-
-    fun preview(node: FileNode) {
-        _preview.value = PreviewState.Loading
-        viewModelScope.launch {
-            try {
-                when (node.kind) {
-                    FileKind.Svg -> {
-                        val png = withContext(Dispatchers.IO) {
-                            val bytes = io.readBytes(node.uri)
-                            native.renderSvgPreview(bytes, 512)
-                        }
-                        _preview.value = PreviewState.SvgImage(node.name, png)
-                    }
-                    FileKind.Xml -> {
-                        val xml = withContext(Dispatchers.IO) {
-                            String(io.readBytes(node.uri))
-                        }
-                        _preview.value = PreviewState.XmlDrawable(node.name, xml)
-                    }
-                    else -> _preview.value = PreviewState.Empty
-                }
-            } catch (e: Exception) {
-                AppLogger.logError("FileManager", "preview failed for ${node.name}", e)
-                _preview.value = PreviewState.Failed(node.name, e.message ?: "preview failed")
-            }
-        }
-    }
-
-    fun closePreview() { _preview.value = PreviewState.Empty }
-
-    // --- tree building -------------------------------------------------------
-
-    private fun rebuild() {
-        viewModelScope.launch {
-            val list = withContext(Dispatchers.IO) { flatten() }
-            // apply type filter (dirs always kept)
-            _rows.value = list.filter { _filter.value.accepts(it.node) }
-        }
-    }
-
-    /** Depth-first flatten honoring expansion; lazily lists+caches each dir. */
-    private fun flatten(): List<TreeRow> {
-        val treeUri = _root.value ?: return emptyList()
-        val out = ArrayList<TreeRow>()
-        fun walk(docId: String?, depth: Int) {
-            val cacheKey = docId ?: "ROOT"
-            val kids = childrenCache.getOrPut(cacheKey) { files.listChildren(treeUri, docId) }
-            for (node in kids) {
-                val isExp = expanded.contains(node.uri.toString())
-                out.add(TreeRow(node, depth, isExp))
-                if (node.isDirectory && isExp) {
-                    walk(android.provider.DocumentsContract.getDocumentId(node.uri), depth + 1)
-                }
-            }
-        }
-        walk(null, 0)
-        return out
-    }
+private fun formatDuration(ms: Long): String {
+    if (ms < 1000) return "$ms ms"
+    val s = ms / 1000.0
+    return String.format("%.1f s", s)
 }
