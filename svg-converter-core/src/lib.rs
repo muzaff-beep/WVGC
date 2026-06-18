@@ -19,15 +19,6 @@ pub mod utils;
 pub mod image_export;
 pub mod batch_processor;
 
-// FFI bridge (Module B). jni.rs gates its whole contents behind
-// #![cfg(target_os = "android")] and the `jni` crate is an Android-only
-// dependency, so the module is only declared for Android targets. Without
-// this declaration the JNI exports are NOT compiled into the .so, which
-// produces a runtime UnsatisfiedLinkError ("No implementation found for
-// nativeConvertSvg") even though the library itself loads fine.
-#[cfg(target_os = "android")]
-pub mod jni;
-
 pub use error::ConversionError;
 
 /// C-1: Convert raw SVG bytes into Android VectorDrawable XML.
