@@ -37,7 +37,6 @@ sealed interface PreviewState {
     data object Loading : PreviewState
     @Suppress("ArrayInDataClass")
     data class SvgImage(val name: String, val png: ByteArray) : PreviewState
-    data class XmlDrawable(val name: String, val xml: String) : PreviewState
     data class Failed(val name: String, val message: String) : PreviewState
 }
 
@@ -123,10 +122,14 @@ class FileManagerViewModel(
                         _preview.value = PreviewState.SvgImage(node.name, png)
                     }
                     FileKind.Xml -> {
-                        val xml = withContext(Dispatchers.IO) {
-                            String(io.readBytes(node.uri))
+                        // Use the same native renderer as SVG preview — it handles
+                        // VectorDrawable XML including aapt:attr gradient blocks,
+                        // which the Android runtime inflater cannot do at runtime.
+                        val png = withContext(Dispatchers.IO) {
+                            val xml = String(io.readBytes(node.uri))
+                            native.renderVdPreview(xml, 512)
                         }
-                        _preview.value = PreviewState.XmlDrawable(node.name, xml)
+                        _preview.value = PreviewState.SvgImage(node.name, png)
                     }
                     else -> _preview.value = PreviewState.Empty
                 }
