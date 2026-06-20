@@ -13,6 +13,7 @@ import com.watermelon.converter.data.model.BatchReport
 import com.watermelon.converter.data.model.FileOutcome
 import com.watermelon.converter.data.repository.FileRepository
 import com.watermelon.converter.jni.ConversionException
+import com.watermelon.converter.logging.AppLogger
 import com.watermelon.converter.jni.ProgressCallback
 import com.watermelon.converter.jni.RealSvgConverter
 import com.watermelon.converter.jni.SvgConverter
