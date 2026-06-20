@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.watermelon.converter.Routes
 import com.watermelon.converter.ui.sharedGraphViewModel
 import com.watermelon.converter.viewmodel.BatchUiState
 import com.watermelon.converter.viewmodel.BatchViewModel
@@ -24,13 +23,10 @@ import com.watermelon.converter.ui.components.SeedBar
 @Composable
 fun BatchScreen(nav: NavController, vm: BatchViewModel = nav.sharedGraphViewModel()) {
     val state by vm.state.collectAsState()
+    val reportSaveState by vm.reportSaveState.collectAsState()
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri -> if (uri != null) vm.convertZip(uri) }
-
-    LaunchedEffect(state) {
-        if (state is BatchUiState.Done) nav.navigate(Routes.REPORT)
-    }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Batch convert") }) }) { pad ->
         Column(
@@ -68,6 +64,14 @@ fun BatchScreen(nav: NavController, vm: BatchViewModel = nav.sharedGraphViewMode
                     Text("Batch failed", style = MaterialTheme.typography.titleLarge)
                     Text(s.message, color = MaterialTheme.colorScheme.error)
                     Button(onClick = { vm.reset() }) { Text("Try again") }
+                }
+                is BatchUiState.Done -> {
+                    com.watermelon.converter.ui.components.ReportPanel(
+                        report = s.report,
+                        onSaveReport = { vm.saveReport() },
+                        onDismiss = { vm.dismissReport(); nav.popBackStack() },
+                        saveState = reportSaveState,
+                    )
                 }
                 else -> {
                     Text("Pick a .zip of SVG files.")
