@@ -65,6 +65,20 @@ fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
 
             HorizontalDivider()
 
+            Text("Navigation", style = MaterialTheme.typography.titleLarge)
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Slide animation", modifier = Modifier.weight(1f))
+                Switch(
+                    checked = settings.slideAnimation,
+                    onCheckedChange = { vm.setSlideAnimation(it) },
+                )
+            }
+
+            HorizontalDivider()
+
             Text("Diagnostics", style = MaterialTheme.typography.titleLarge)
             val ctx = LocalContext.current
             Button(
