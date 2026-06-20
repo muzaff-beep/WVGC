@@ -9,6 +9,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -22,12 +23,14 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 data class AppSettings(
     val previewPx: Int = 256,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val slideAnimation: Boolean = true,
 )
 
 class SettingsRepository(private val context: Context) {
     private object Keys {
         val PREVIEW_PX = intPreferencesKey("preview_px")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val SLIDE_ANIMATION = booleanPreferencesKey("slide_animation")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
@@ -35,6 +38,7 @@ class SettingsRepository(private val context: Context) {
             previewPx = (p[Keys.PREVIEW_PX] ?: 256).coerceIn(16, 2048),
             themeMode = runCatching { ThemeMode.valueOf(p[Keys.THEME_MODE] ?: "SYSTEM") }
                 .getOrDefault(ThemeMode.SYSTEM),
+            slideAnimation = p[Keys.SLIDE_ANIMATION] ?: true,
         )
     }
 
@@ -44,5 +48,9 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    }
+
+    suspend fun setSlideAnimation(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SLIDE_ANIMATION] = enabled }
     }
 }
