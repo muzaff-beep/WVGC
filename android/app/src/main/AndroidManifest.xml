@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Copyright (c) 2026 Suhail Muzaffari. All rights reserved. -->
 <!-- No INTERNET permission by design (offline-first, zero network). -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Full filesystem access for the file manager tab. This is a sensitive
+         permission: the user must grant it via a system Settings screen (no
+         normal runtime dialog exists for it), and Play Store distribution
+         requires the app's core purpose to be file management to qualify.
+         Used here for personal/sideload builds per project decision. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
     <application
         android:name=".WvgcApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Watermelon">
@@ -13,6 +23,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
             android:theme="@style/Theme.Watermelon">
             <intent-filter>
