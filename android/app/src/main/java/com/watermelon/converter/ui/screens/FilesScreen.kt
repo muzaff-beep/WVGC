@@ -380,3 +380,4 @@ private fun ConvertResultDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
     )
+}
