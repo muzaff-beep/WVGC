@@ -156,4 +156,51 @@ class BatchViewModel(
     }
 
     fun reset() { _state.value = BatchUiState.Idle }
+
+    private val _reportSaveState = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val reportSaveState: StateFlow<String?> = _reportSaveState.asStateFlow()
+
+    /**
+     * Save the current report as a .txt next to the converted output, in the
+     * unified Batch_files directory. Returns via [reportSaveState] for the UI.
+     */
+    fun saveReport() {
+        val report = (_state.value as? BatchUiState.Done)?.report ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val dir = com.watermelon.converter.util.WvgcPaths.batchFilesDir
+                val file = java.io.File(dir, "report_${System.currentTimeMillis()}.txt")
+                file.writeText(formatReport(report))
+                _reportSaveState.value = "Report saved: ${file.name}"
+            } catch (e: Exception) {
+                AppLogger.logError("BatchViewModel", "saveReport failed", e)
+                _reportSaveState.value = "Could not save report"
+            }
+        }
+    }
+
+    fun dismissReport() {
+        _state.value = BatchUiState.Idle
+        _reportSaveState.value = null
+    }
+
+    private fun formatReport(r: BatchReport): String = buildString {
+        appendLine("=== Watermelon Vector Converter — conversion report ===")
+        appendLine("Total files: ${r.total}")
+        appendLine("Succeeded:   ${r.succeeded}")
+        appendLine("Failed:      ${r.failed}")
+        appendLine("Input size:  ${r.inputBytes} bytes")
+        appendLine("Output size: ${r.outputBytes} bytes")
+        appendLine("Duration:    ${r.durationMillis} ms")
+        appendLine()
+        if (r.rejected.isNotEmpty()) {
+            appendLine("Rejected files:")
+            r.rejected.forEach { f ->
+                val code = f.errorCode?.let { "[$it] " } ?: ""
+                appendLine("  - ${f.name}: $code${f.errorMessage ?: "unknown"}")
+            }
+        } else {
+            appendLine("All files converted successfully.")
+        }
+    }
 }
