@@ -107,6 +107,10 @@ class FileManagerViewModel(
     private val _opStatus = MutableStateFlow<String?>(null)
     val opStatus: StateFlow<String?> = _opStatus.asStateFlow()
 
+    /** True while the tree is being (re)built or a directory/search is loading. */
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
     private val expanded = LinkedHashSet<String>()      // absolute paths
     private val childrenCache = HashMap<String, List<FileNode>>()
 
@@ -148,10 +152,12 @@ class FileManagerViewModel(
             return
         }
         viewModelScope.launch {
+            _loading.value = true
             val results = withContext(Dispatchers.IO) {
                 repo.search(_currentDir.value, q).filter { _filter.value.accepts(it) }
             }
             _searchResults.value = results
+            _loading.value = false
         }
     }
 
@@ -429,8 +435,10 @@ class FileManagerViewModel(
 
     private fun rebuild() {
         viewModelScope.launch {
+            _loading.value = true
             val list = withContext(Dispatchers.IO) { flatten() }
             _rows.value = list
+            _loading.value = false
         }
     }
 
