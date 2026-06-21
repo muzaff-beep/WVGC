@@ -130,8 +130,10 @@ class BatchViewModel(
                     val code = text.substringAfter('[', "").substringBefore(']').toIntOrNull()
                     val msg = text.substringAfter("] ", text)
                     outcomes.add(FileOutcome(original, ok = false, errorCode = code, errorMessage = msg))
+                    com.watermelon.converter.data.model.HistoryStore.add(original, "", ok = false, error = text)
                 } else {
                     outcomes.add(FileOutcome(name, ok = true))
+                    com.watermelon.converter.data.model.HistoryStore.add(name, String(content), ok = true)
                 }
             }
         }
