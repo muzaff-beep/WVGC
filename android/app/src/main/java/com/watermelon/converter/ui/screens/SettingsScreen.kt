@@ -6,6 +6,8 @@
 package com.watermelon.converter.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,7 +36,7 @@ fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
         }
     ) { pad ->
         Column(
-            Modifier.fillMaxSize().padding(pad).padding(24.dp),
+            Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Text("Preview resolution", style = MaterialTheme.typography.titleLarge)
