@@ -16,7 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.watermelon.converter.logging.AppLogger
+import com.watermelon.converter.ui.theme.FreshTeal
+import com.watermelon.converter.ui.theme.SlateGray
+import com.watermelon.converter.ui.theme.WatermelonRed
+import com.watermelon.converter.util.OutputDestination
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.watermelon.converter.data.prefs.ThemeMode
@@ -27,6 +33,12 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
     val settings by vm.settings.collectAsState()
+    val ctx = LocalContext.current
+
+    val destPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri -> if (uri != null) vm.setOutputDestination(uri) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -62,6 +74,29 @@ fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
                     RadioButton(selected = settings.themeMode == mode, onClick = { vm.setThemeMode(mode) })
                     Spacer(Modifier.width(8.dp))
                     Text(mode.name.lowercase().replaceFirstChar { it.uppercase() })
+                }
+            }
+
+            HorizontalDivider()
+
+            Text("Output destination", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "All converted files are saved here. Tap to change.",
+                style = MaterialTheme.typography.labelLarge,
+                color = SlateGray,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                OutputDestination.displayLabel(ctx, settings.outputDestinationUri),
+                style = MaterialTheme.typography.bodyMedium,
+                color = FreshTeal,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { destPicker.launch(null) }) { Text("Change folder") }
+                if (settings.outputDestinationUri != null) {
+                    OutlinedButton(onClick = { vm.clearOutputDestination() }) {
+                        Text("Reset to default", color = WatermelonRed)
+                    }
                 }
             }
 
