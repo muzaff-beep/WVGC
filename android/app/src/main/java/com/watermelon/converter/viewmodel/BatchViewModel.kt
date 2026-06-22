@@ -187,7 +187,7 @@ class BatchViewModel(
                 val destUri = outputDestUri()
                 val fileName = "report_${System.currentTimeMillis()}.txt"
                 val bytes = formatReport(report).toByteArray()
-                val path = com.watermelon.converter.util.OutputDestination.write(
+                com.watermelon.converter.util.OutputDestination.write(
                     getApplication(), bytes, fileName, destUri, mime = "text/plain",
                 )
                 _reportSaveState.value = "Report saved: ${fileName}"
