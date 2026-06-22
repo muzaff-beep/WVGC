@@ -5,7 +5,9 @@
 
 package com.watermelon.converter.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +19,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
+import com.watermelon.converter.R
 import androidx.navigation.NavController
 import com.watermelon.converter.Routes
 import com.watermelon.converter.ui.components.WatermelonSlice
@@ -111,6 +116,28 @@ fun HomeScreen(nav: NavController) {
                     "View history",
                     color = DeepNavy.copy(alpha = 0.5f),
                     fontSize = 14.sp,
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            // ── Digital Raven studio mark (visual only, small) ──
+            Image(
+                painter = painterResource(id = R.drawable.digital_raven_logo),
+                contentDescription = "Digital Raven",
+                modifier = androidx.compose.ui.Modifier
+                    .size(72.dp)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                    .clickable { nav.navigate(Routes.ABOUT) },
+                contentScale = ContentScale.Fit,
+                alpha = 0.55f,
+            )
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = { nav.navigate(Routes.ABOUT) }) {
+                Text(
+                    "About this app",
+                    color = DeepNavy.copy(alpha = 0.4f),
+                    fontSize = 12.sp,
                 )
             }
         }
