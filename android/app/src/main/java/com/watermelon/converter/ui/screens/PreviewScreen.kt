@@ -7,6 +7,7 @@ package com.watermelon.converter.ui.screens
 
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -103,9 +104,16 @@ private fun PreviewTile(label: String, png: ByteArray?, modifier: Modifier = Mod
             if (png != null) {
                 val bmp = remember(png) { BitmapFactory.decodeByteArray(png, 0, png.size) }
                 if (bmp != null) {
-                    Image(bmp.asImageBitmap(), contentDescription = label, modifier = Modifier.size(120.dp))
+                    // Vector previews always render on white, regardless of app
+                    // theme, so transparent/dark-stroked art reads correctly.
+                    Box(
+                        Modifier.size(120.dp).background(androidx.compose.ui.graphics.Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(bmp.asImageBitmap(), contentDescription = label, modifier = Modifier.size(120.dp))
+                    }
                 } else {
-                    Text("—", textAlign = TextAlign.Center)
+                    Text("\u2014", textAlign = TextAlign.Center)
                 }
             } else {
                 Text("preview unavailable", textAlign = TextAlign.Center)
