@@ -63,6 +63,7 @@ object Routes {
     const val BATCH = "batch"
     const val EXPORT = "export"
     const val HISTORY = "history"
+    const val ABOUT = "about"
 }
 
 @androidx.compose.runtime.Composable
@@ -75,5 +76,6 @@ fun AppNavHost(settingsVm: SettingsViewModel) {
         composable(Routes.BATCH) { BatchScreen(nav) }
         composable(Routes.EXPORT) { ExportScreen(nav) }
         composable(Routes.HISTORY) { HistoryScreen(nav) }
+        composable(Routes.ABOUT) { AboutScreen(nav) }
     }
 }
