@@ -81,6 +81,9 @@ class FileManagerViewModel(
     private val _previewedFile = MutableStateFlow<FileNode?>(null)
     val previewedFile: StateFlow<FileNode?> = _previewedFile.asStateFlow()
 
+    private val _properties = MutableStateFlow<com.watermelon.converter.data.model.VectorProperties?>(null)
+    val properties: StateFlow<com.watermelon.converter.data.model.VectorProperties?> = _properties.asStateFlow()
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -164,12 +167,14 @@ class FileManagerViewModel(
     fun preview(node: FileNode) {
         _previewedFile.value = node
         _preview.value = PreviewState.Loading
+        _properties.value = null
         viewModelScope.launch {
             try {
+                val bytes = withContext(Dispatchers.IO) { node.file.readBytes() }
                 when (node.kind) {
                     FileKind.Svg -> {
                         val png = withContext(Dispatchers.IO) {
-                            native.renderSvgPreview(node.file.readBytes(), 512)
+                            native.renderSvgPreview(bytes, 512)
                         }
                         _preview.value = PreviewState.SvgImage(node.name, png)
                     }
@@ -181,6 +186,17 @@ class FileManagerViewModel(
                     }
                     else -> _preview.value = PreviewState.Empty
                 }
+                // Run analysis in parallel after preview render — SVG and XML both go through it.
+                if (node.kind == FileKind.Svg || node.kind == FileKind.Xml) {
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val json = native.analyzeVector(bytes)
+                            _properties.value = com.watermelon.converter.data.model.VectorProperties.from(node.file, json)
+                        } catch (e: Exception) {
+                            AppLogger.logError("FileManager", "analysis failed for ${node.name}", e)
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 AppLogger.logError("FileManager", "preview failed for ${node.name}", e)
                 _preview.value = PreviewState.Failed(node.name, e.message ?: "preview failed")
@@ -191,6 +207,7 @@ class FileManagerViewModel(
     fun closePreview() {
         _preview.value = PreviewState.Empty
         _previewedFile.value = null
+        _properties.value = null
     }
 
     /** Toggle the mark on whatever file is currently previewed. Only SVG files
