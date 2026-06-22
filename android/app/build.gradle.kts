@@ -37,7 +37,7 @@ android {
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     // composeOptions block removed: Kotlin 2.0+ uses the compose plugin above
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
