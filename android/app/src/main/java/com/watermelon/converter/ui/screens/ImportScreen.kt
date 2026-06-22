@@ -5,42 +5,54 @@
 
 package com.watermelon.converter.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.watermelon.converter.Routes
+import com.watermelon.converter.ui.sharedGraphViewModel
+import com.watermelon.converter.viewmodel.ConversionViewModel
+import com.watermelon.converter.viewmodel.ConvertUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(nav: NavController) {
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text("Watermelon Vector Converter") },
-            actions = {
-                TextButton(onClick = { nav.navigate(Routes.HISTORY) }) { Text("History") }
-            },
-        )
-    }) { pad ->
+fun ImportScreen(nav: NavController, vm: ConversionViewModel = nav.sharedGraphViewModel()) {
+    val state by vm.state.collectAsState()
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) vm.convert(uri) }
+
+    LaunchedEffect(state) {
+        if (state is ConvertUiState.Done) nav.navigate(Routes.PREVIEW)
+    }
+
+    Scaffold(topBar = { TopAppBar(title = { Text("Import SVG") }) }) { pad ->
         Column(
             modifier = Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Convert SVG to Android VectorDrawable", textAlign = TextAlign.Center, style = MaterialTheme.typography.titleLarge)
-            Text("Fully offline. No network.", style = MaterialTheme.typography.bodyLarge)
-            Spacer(Modifier.height(8.dp))
-            Button(onClick = { nav.navigate(Routes.IMPORT) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Convert a single SVG")
-            }
-            OutlinedButton(onClick = { nav.navigate(Routes.BATCH) }, modifier = Modifier.fillMaxWidth()) {
-                Text("Batch convert a ZIP")
+            when (val s = state) {
+                is ConvertUiState.Working -> CircularProgressIndicator()
+                is ConvertUiState.Error -> {
+                    Text("Conversion failed", style = MaterialTheme.typography.titleLarge)
+                    Text(s.message, color = MaterialTheme.colorScheme.error)
+                    Button(onClick = { vm.reset() }) { Text("Try again") }
+                }
+                else -> {
+                    Text("Pick an .svg file to convert.")
+                    Button(
+                        onClick = { picker.launch(arrayOf("image/svg+xml", "text/xml", "application/octet-stream")) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Choose SVG file") }
+                }
             }
         }
     }
