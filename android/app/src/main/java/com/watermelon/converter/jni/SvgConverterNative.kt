@@ -37,4 +37,7 @@ object SvgConverterNative {
     external fun nativeRenderSvgPreview(svg: ByteArray, px: Int): ByteArray
     external fun nativeRenderVdPreview(vdXml: String, px: Int): ByteArray
     external fun nativeCancel()
+
+    /** Analyze a vector file's structure. Returns a JSON string (Contract C-5.0). */
+    external fun nativeAnalyzeVector(bytes: ByteArray): String
 }
