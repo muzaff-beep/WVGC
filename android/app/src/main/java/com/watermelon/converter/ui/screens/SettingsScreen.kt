@@ -5,6 +5,7 @@
 
 package com.watermelon.converter.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,7 +44,6 @@ fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
-                navigationIcon = { TextButton(onClick = { nav.popBackStack() }) { Text("Back") } },
             )
         }
     ) { pad ->
@@ -116,6 +116,27 @@ fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
 
             HorizontalDivider()
 
+            Text("File preview", style = MaterialTheme.typography.titleLarge)
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Show file properties")
+                    Text(
+                        "Displays name, size, dimensions and structure below the preview image.",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = SlateGray,
+                    )
+                }
+                Switch(
+                    checked = settings.showFileProperties,
+                    onCheckedChange = { vm.setShowFileProperties(it) },
+                )
+            }
+
+            HorizontalDivider()
+
             Text("Diagnostics", style = MaterialTheme.typography.titleLarge)
             val ctx = LocalContext.current
             Button(
@@ -129,6 +150,27 @@ fun SettingsScreen(nav: NavController, vm: SettingsViewModel = viewModel()) {
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Save logs to Downloads") }
+
+            HorizontalDivider()
+
+            // About row
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { nav.navigate(com.watermelon.converter.Routes.ABOUT) }
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("About", fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = DeepNavy)
+                    Text(
+                        "Developer info, version, license",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = SlateGray,
+                    )
+                }
+                Text("›", fontSize = 20.sp, color = SlateGray)
+            }
         }
     }
 }
