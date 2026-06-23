@@ -7,6 +7,7 @@ package com.watermelon.converter.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,15 +20,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.watermelon.converter.R
 import com.watermelon.converter.ui.components.WatermelonSlice
 import com.watermelon.converter.ui.theme.*
+
+private val STACK = listOf(
+    "Kotlin", "Jetpack Compose", "Material3",
+    "Rust", "JNI", "resvg", "libsodium", "vodozemac",
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,108 +65,109 @@ fun AboutScreen(nav: NavController) {
                 .padding(horizontal = 28.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // ── Digital Raven full logo ──
-            // TODO: drop digital_raven_logo.png into android/app/src/main/res/drawable/
-            // then replace this placeholder with:
-            //   Image(painterResource(R.drawable.digital_raven_logo), ...)
-            Box(
-                Modifier
-                    .fillMaxWidth(0.72f)
+
+            // ── 1. Digital Raven logo ──────────────────────────────────────
+            Image(
+                painter = painterResource(id = R.drawable.digital_raven_logo),
+                contentDescription = "Digital Raven — High-Tech Solutions and Services",
+                modifier = Modifier
+                    .fillMaxWidth(0.78f)
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(DeepNavy),
-                contentAlignment = Alignment.Center,
-            ) {
-                com.watermelon.converter.ui.components.WatermelonSlice(size = 120.dp)
+                    .clip(RoundedCornerShape(20.dp)),
+                contentScale = ContentScale.Fit,
+            )
+
+            Spacer(Modifier.height(36.dp))
+            HorizontalDivider(color = Color(0xFFE2E8F0))
+            Spacer(Modifier.height(28.dp))
+
+            // ── 2. Stack ───────────────────────────────────────────────────
+            Text(
+                "Built with",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = SlateGray,
+                letterSpacing = 2.sp,
+            )
+            Spacer(Modifier.height(14.dp))
+
+            // Wrap chips in rows
+            val rows = STACK.chunked(3)
+            rows.forEach { row ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                ) {
+                    row.forEach { tech ->
+                        Box(
+                            Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(DeepNavy.copy(alpha = 0.08f))
+                                .padding(horizontal = 14.dp, vertical = 6.dp),
+                        ) {
+                            Text(
+                                tech,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = DeepNavy,
+                            )
+                        }
+                    }
+                }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(28.dp))
+            HorizontalDivider(color = Color(0xFFE2E8F0))
+            Spacer(Modifier.height(28.dp))
 
-            // ── Developer credit ──
+            // ── 3. Lead Programmer credit ──────────────────────────────────
             Text(
-                "Developed by",
-                fontSize = 13.sp,
+                "Lead Programmer",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = SlateGray,
-                letterSpacing = 1.sp,
+                letterSpacing = 2.sp,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 "Suhail Muzaffari",
-                fontSize = 20.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = DeepNavy,
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Digital Raven",
-                fontSize = 14.sp,
-                color = FreshTeal,
-                fontWeight = FontWeight.SemiBold,
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // ── Tappable email ──
+            Spacer(Modifier.height(8.dp))
             Text(
                 "so.muzaff@gmail.com",
                 fontSize = 15.sp,
                 color = FreshTeal,
                 textDecoration = TextDecoration.Underline,
                 modifier = Modifier.clickable {
-                    val intent = Intent(Intent.ACTION_SENDTO).apply {
-                        data = Uri.parse("mailto:so.muzaff@gmail.com")
-                        putExtra(Intent.EXTRA_SUBJECT, "Watermelon Vector Converter")
-                    }
-                    ctx.startActivity(intent)
+                    ctx.startActivity(
+                        Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:so.muzaff@gmail.com")
+                            putExtra(Intent.EXTRA_SUBJECT, "Watermelon Vector Converter")
+                        }
+                    )
                 },
-            )
-
-            Spacer(Modifier.height(32.dp))
-            HorizontalDivider(color = Color(0xFFE2E8F0))
-            Spacer(Modifier.height(32.dp))
-
-            // ── App info ──
-            Text(
-                "Watermelon Vector Converter",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = DeepNavy,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Version ${"0.1.0"}",
-                fontSize = 13.sp,
-                color = SlateGray,
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "An offline-first SVG to Android VectorDrawable converter. " +
-                "No internet, no cloud, no tracking. " +
-                "Converts on-device using a native Rust engine.",
-                fontSize = 14.sp,
-                color = SlateGray,
-                textAlign = TextAlign.Center,
-                lineHeight = 22.sp,
             )
 
             Spacer(Modifier.height(40.dp))
 
-            // ── Small watermelon as a decorative closer ──
-            WatermelonSlice(size = 64.dp)
-
+            // ── Decorative closer ──────────────────────────────────────────
+            WatermelonSlice(size = 56.dp)
             Spacer(Modifier.height(16.dp))
             Text(
-                "© 2026 Suhail Muzaffari. All rights reserved.",
+                "© 2026 Suhail Muzaffari · All rights reserved.",
                 fontSize = 11.sp,
-                color = SlateGray.copy(alpha = 0.6f),
+                color = SlateGray.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
             )
             Text(
                 "Proprietary and source-available.",
                 fontSize = 11.sp,
-                color = SlateGray.copy(alpha = 0.6f),
+                color = SlateGray.copy(alpha = 0.5f),
             )
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
