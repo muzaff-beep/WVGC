@@ -171,6 +171,21 @@ class BatchViewModel(
         }
     }
 
+    /** Export to the Settings-configured output destination (no picker required). */
+    fun exportToSettings(fileName: String = "watermelon_vectors.zip") {
+        val zip = lastZip ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val destUri = settingsRepo.settings.first().outputDestinationUri
+                if (destUri != null) {
+                    com.watermelon.converter.util.OutputDestination.write(
+                        getApplication(), zip, fileName, destUri, mime = "application/zip",
+                    )
+                }
+            }
+        }
+    }
+
     fun reset() { _state.value = BatchUiState.Idle }
 
     private val _reportSaveState = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)

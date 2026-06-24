@@ -17,6 +17,7 @@ import com.watermelon.converter.jni.RealSvgConverter
 import com.watermelon.converter.jni.SvgConverter
 import com.watermelon.converter.jni.userMessage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,7 @@ sealed interface ConvertUiState {
         val vdXml: String,
         val svgPreviewPng: ByteArray?,
         val vdPreviewPng: ByteArray?,
+        val analysisJson: String? = null,   // structural analysis for the properties panel
     ) : ConvertUiState
     data class Error(val message: String) : ConvertUiState
 }
@@ -72,11 +74,19 @@ class ConversionViewModel(
                     val svgBytes = repo.readBytes(uri)
                     require(svgBytes.isNotEmpty()) { "empty file" }
                     val xml = native.convertSvg(svgBytes)
-                    val svgPng = runCatching { native.renderSvgPreview(svgBytes, px) }.getOrNull()
-                    val vdPng = runCatching { native.renderVdPreview(xml, px) }.getOrNull()
+                    // Run previews and analysis in parallel — all independent.
+                    val svgPngDef = async { runCatching { native.renderSvgPreview(svgBytes, px) }.getOrNull() }
+                    val vdPngDef  = async { runCatching { native.renderVdPreview(xml, px) }.getOrNull() }
+                    val analysisDef = async { runCatching { native.analyzeVector(svgBytes) }.getOrNull() }
                     lastVdXml = xml
                     lastSourceName = name
-                    ConvertUiState.Done(name, xml, svgPng, vdPng)
+                    ConvertUiState.Done(
+                        sourceName = name,
+                        vdXml = xml,
+                        svgPreviewPng = svgPngDef.await(),
+                        vdPreviewPng = vdPngDef.await(),
+                        analysisJson = analysisDef.await(),
+                    )
                 }
                 HistoryStore.add(result.sourceName, result.vdXml, ok = true)
                 _state.value = result
@@ -92,12 +102,28 @@ class ConversionViewModel(
         }
     }
 
-    fun export(treeUri: Uri) {
-        val xml = lastVdXml ?: return
+    /**
+     * Export the converted VD XML to the user's chosen output destination.
+     * If a Settings destination is configured, writes there directly (no
+     * folder picker needed). Falls back to [treeUri] when called from the
+     * Export screen (used when Settings destination is null).
+     */
+    fun export(treeUri: Uri? = null) {
+        val xml  = lastVdXml ?: return
         val name = lastSourceName ?: "image.svg"
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                repo.writeToTree(treeUri, repo.xmlNameFor(name), "application/xml", xml.toByteArray())
+                val destUri = settingsRepo.settings.first().outputDestinationUri
+                if (destUri != null) {
+                    // Write directly to the Settings-configured destination via SAF.
+                    com.watermelon.converter.util.OutputDestination.write(
+                        getApplication(), xml.toByteArray(),
+                        repo.xmlNameFor(name), destUri, mime = "application/xml",
+                    )
+                } else if (treeUri != null) {
+                    // Fallback: use the URI from the ExportScreen folder picker.
+                    repo.writeToTree(treeUri, repo.xmlNameFor(name), "application/xml", xml.toByteArray())
+                }
             }
         }
     }
