@@ -404,7 +404,6 @@ private fun SelectionTopBar(
     )
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // File row
 // ─────────────────────────────────────────────────────────────────────────────
@@ -451,10 +450,10 @@ private fun FileRow(
 
         // Icon
         when (node.kind) {
-            FileKind.Directory -> FolderIcon(size = 44.dp)
-            FileKind.Svg -> FileIconWithLabel("SVG", FreshTeal, size = 44.dp)
-            FileKind.Xml -> FileIconWithLabel("XML", DeepNavy, size = 44.dp)
-            FileKind.Other -> FileIconWithLabel("—", SlateGray, size = 44.dp)
+            FileKind.Directory -> FolderIcon(size = 18.dp)
+            FileKind.Svg -> FileIconWithLabel("SVG", FreshTeal, size = 18.dp)
+            FileKind.Xml -> FileIconWithLabel("XML", DeepNavy, size = 18.dp)
+            FileKind.Other -> FileIconWithLabel("—", SlateGray, size = 18.dp)
         }
 
         Spacer(Modifier.width(14.dp))

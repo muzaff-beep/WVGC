@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.watermelon.converter.Routes
 import com.watermelon.converter.data.model.HistoryStore
 import com.watermelon.converter.util.ShareUtils
 import java.text.SimpleDateFormat
@@ -32,7 +33,7 @@ fun HistoryScreen(nav: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("History") },
-                navigationIcon = { TextButton(onClick = { nav.popBackStack() }) { Text("Back") } },
+                navigationIcon = { TextButton(onClick = { nav.navigate(Routes.PAGER) { popUpTo(Routes.PAGER) { inclusive = false } } }) { Text("Back") } },
                 actions = { if (items.isNotEmpty()) TextButton(onClick = { HistoryStore.clear() }) { Text("Clear") } },
             )
         }

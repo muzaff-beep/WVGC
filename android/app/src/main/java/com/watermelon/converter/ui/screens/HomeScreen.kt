@@ -170,7 +170,7 @@ fun HomeScreen(nav: NavController) {
             val convBusy = convState is ConvertUiState.Working
             Button(
                 onClick = {
-                    svgPicker.launch(arrayOf("image/svg+xml", "text/xml", "application/octet-stream"))
+                    svgPicker.launch(arrayOf("image/svg+xml", "text/xml"))
                 },
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(30.dp),
@@ -192,7 +192,7 @@ fun HomeScreen(nav: NavController) {
             val batchBusy = batchState is BatchUiState.Working
             Button(
                 onClick = {
-                    zipPicker.launch(arrayOf("application/zip", "application/octet-stream"))
+                    zipPicker.launch(arrayOf("application/zip"))
                 },
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(30.dp),

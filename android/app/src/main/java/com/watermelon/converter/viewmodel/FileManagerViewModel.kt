@@ -19,6 +19,7 @@ import com.watermelon.converter.logging.AppLogger
 import com.watermelon.converter.util.StoragePermission
 import com.watermelon.converter.util.WvgcPaths
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -121,6 +122,10 @@ class FileManagerViewModel(
 
     private val expanded = LinkedHashSet<String>()      // absolute paths
     private val childrenCache = HashMap<String, List<FileNode>>()
+    // Memoizes containsMatching() per directory so expand/collapse and re-render
+    // don't repeat the recursive disk scan. Keyed by dir path; cleared when the
+    // filter changes (affects what "matching" means) or files change on disk.
+    private val containsCache = HashMap<String, Boolean>()
 
     init {
         if (_hasPermission.value) {
@@ -141,13 +146,16 @@ class FileManagerViewModel(
 
     fun setFilter(showSvg: Boolean, showXml: Boolean) {
         _filter.value = TypeFilter(showSvg, showXml)
-        rebuild()
+        // Filter change re-filters cached data — no disk re-scan, no spinner.
+        containsCache.clear()  // filter affects folder visibility, so drop that memo
+        rebuild(showLoading = false)
     }
 
     fun toggleDir(node: FileNode) {
         val key = node.file.absolutePath
         if (expanded.contains(key)) expanded.remove(key) else expanded.add(key)
-        rebuild()
+        // Expand/collapse reads from the children cache — no spinner, no reset.
+        rebuild(showLoading = false)
     }
 
     fun isMarked(node: FileNode): Boolean = MarkedFilesStore.isMarked(node.file)
@@ -175,32 +183,37 @@ class FileManagerViewModel(
         _properties.value = null
         viewModelScope.launch {
             try {
+                // Read bytes once — reused by both render and analysis.
                 val bytes = withContext(Dispatchers.IO) { node.file.readBytes() }
+
                 when (node.kind) {
-                    FileKind.Svg -> {
-                        val png = withContext(Dispatchers.IO) {
-                            native.renderSvgPreview(bytes, 512)
+                    FileKind.Svg, FileKind.Xml -> {
+                        // Render at 256px for the docked pane (faster than 512px;
+                        // fullscreen expand can re-render at higher res if needed).
+                        val renderDeferred = withContext(Dispatchers.IO) {
+                            async {
+                                when (node.kind) {
+                                    FileKind.Svg -> native.renderSvgPreview(bytes, 256)
+                                    else         -> native.renderVdPreview(String(bytes), 256)
+                                }
+                            }
                         }
-                        _preview.value = PreviewState.SvgImage(node.name, png)
-                    }
-                    FileKind.Xml -> {
-                        val png = withContext(Dispatchers.IO) {
-                            native.renderVdPreview(node.file.readText(), 512)
+                        val analyzeDeferred = withContext(Dispatchers.IO) {
+                            async {
+                                try {
+                                    val json = native.analyzeVector(bytes)
+                                    com.watermelon.converter.data.model.VectorProperties.from(node.file, json)
+                                } catch (e: Exception) {
+                                    AppLogger.logError("FileManager", "analysis failed for ${node.name}", e)
+                                    null
+                                }
+                            }
                         }
-                        _preview.value = PreviewState.SvgImage(node.name, png)
+                        // Await both — they ran in parallel on IO
+                        _preview.value    = PreviewState.SvgImage(node.name, renderDeferred.await())
+                        _properties.value = analyzeDeferred.await()
                     }
                     else -> _preview.value = PreviewState.Empty
-                }
-                // Run analysis in parallel after preview render — SVG and XML both go through it.
-                if (node.kind == FileKind.Svg || node.kind == FileKind.Xml) {
-                    withContext(Dispatchers.IO) {
-                        try {
-                            val json = native.analyzeVector(bytes)
-                            _properties.value = com.watermelon.converter.data.model.VectorProperties.from(node.file, json)
-                        } catch (e: Exception) {
-                            AppLogger.logError("FileManager", "analysis failed for ${node.name}", e)
-                        }
-                    }
                 }
             } catch (e: Exception) {
                 AppLogger.logError("FileManager", "preview failed for ${node.name}", e)
@@ -482,18 +495,22 @@ class FileManagerViewModel(
     }
 
     private fun invalidateAndRebuild() {
+        // A real filesystem change (delete/rename/move/copy) happened — drop the
+        // caches so the affected folders re-scan, and show the spinner because
+        // this is a genuine reload, not a view change.
         childrenCache.clear()
-        rebuild()
+        containsCache.clear()
+        rebuild(showLoading = true)
     }
 
     // --- tree building -------------------------------------------------------
 
-    private fun rebuild() {
+    private fun rebuild(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _loading.value = true
+            if (showLoading) _loading.value = true
             val list = withContext(Dispatchers.IO) { flatten() }
             _rows.value = list
-            _loading.value = false
+            if (showLoading) _loading.value = false
         }
     }
 
@@ -506,7 +523,11 @@ class FileManagerViewModel(
             for (node in kids) {
                 if (node.isDirectory) {
                     // Only show folders that contain matching SVG/XML somewhere inside.
-                    if (!repo.containsMatching(node.file, filter)) continue
+                    // Memoized so expand/collapse doesn't re-scan the subtree.
+                    val matches = containsCache.getOrPut(node.file.absolutePath) {
+                        repo.containsMatching(node.file, filter)
+                    }
+                    if (!matches) continue
                     val isExp = expanded.contains(node.file.absolutePath)
                     out.add(TreeRow(node, depth, isExp))
                     if (isExp) walk(node.file, depth + 1)
