@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.watermelon.converter.R
-import com.watermelon.converter.ui.components.WatermelonSlice
 import com.watermelon.converter.ui.theme.*
 
 private val STACK = listOf(
@@ -154,7 +153,12 @@ fun AboutScreen(nav: NavController) {
             Spacer(Modifier.height(40.dp))
 
             // ── Decorative closer ──────────────────────────────────────────
-            WatermelonSlice(size = 56.dp)
+            Icon(
+                painter = painterResource(id = R.drawable.watermelon_gen),
+                contentDescription = "Watermelon",
+                modifier = Modifier.size(56.dp),
+                tint = androidx.compose.ui.graphics.Color.Unspecified,
+            )
             Spacer(Modifier.height(16.dp))
             Text(
                 "© 2026 Suhail Muzaffari · All rights reserved.",
