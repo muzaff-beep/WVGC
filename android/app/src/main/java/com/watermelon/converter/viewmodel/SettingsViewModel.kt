@@ -28,4 +28,5 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun setSlideAnimation(enabled: Boolean) = viewModelScope.launch { repo.setSlideAnimation(enabled) }
     fun setOutputDestination(uri: android.net.Uri) = viewModelScope.launch { repo.setOutputDestination(uri) }
     fun clearOutputDestination() = viewModelScope.launch { repo.clearOutputDestination() }
+    fun setShowFileProperties(enabled: Boolean) = viewModelScope.launch { repo.setShowFileProperties(enabled) }
 }
