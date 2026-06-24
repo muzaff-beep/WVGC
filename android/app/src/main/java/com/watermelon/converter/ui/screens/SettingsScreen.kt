@@ -15,11 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.watermelon.converter.logging.AppLogger
+import com.watermelon.converter.ui.theme.DeepNavy
 import com.watermelon.converter.ui.theme.FreshTeal
 import com.watermelon.converter.ui.theme.SlateGray
 import com.watermelon.converter.ui.theme.WatermelonRed
