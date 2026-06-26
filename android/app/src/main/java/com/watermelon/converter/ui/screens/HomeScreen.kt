@@ -180,7 +180,10 @@ fun HomeScreen(nav: NavController) {
             val convBusy = convState is ConvertUiState.Working
             Button(
                 onClick = {
-                    svgPicker.launch(arrayOf("image/svg+xml", "text/xml"))
+                    // SVGs on Android frequently report as octet-stream or have no
+                    // MIME mapping, so a strict image/svg+xml filter hides real files.
+                    // Use */* so any file is selectable; the engine validates content.
+                    svgPicker.launch(arrayOf("*/*"))
                 },
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(30.dp),
@@ -202,7 +205,9 @@ fun HomeScreen(nav: NavController) {
             val batchBusy = batchState is BatchUiState.Working
             Button(
                 onClick = {
-                    zipPicker.launch(arrayOf("application/zip"))
+                    // ZIPs can report as octet-stream too; use a broader set so
+                    // archives are reliably selectable across file providers.
+                    zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
                 },
                 modifier = Modifier.fillMaxWidth().height(60.dp),
                 shape = RoundedCornerShape(30.dp),
