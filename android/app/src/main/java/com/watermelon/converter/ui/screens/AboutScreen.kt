@@ -45,7 +45,7 @@ fun AboutScreen(nav: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About", fontWeight = FontWeight.SemiBold, color = DeepNavy) },
+                title = { Text("About", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground) },
                 navigationIcon = {
                     TextButton(onClick = { nav.popBackStack() }) {
                         Text("‹ Back", color = FreshTeal, fontSize = 16.sp)
@@ -101,14 +101,14 @@ fun AboutScreen(nav: NavController) {
                         Box(
                             Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(DeepNavy.copy(alpha = 0.08f))
+                                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
                                 .padding(horizontal = 14.dp, vertical = 6.dp),
                         ) {
                             Text(
                                 tech,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = DeepNavy,
+                                color = MaterialTheme.colorScheme.onBackground,
                             )
                         }
                     }
@@ -132,7 +132,7 @@ fun AboutScreen(nav: NavController) {
                 "Suhail Muzaffari",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = DeepNavy,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Spacer(Modifier.height(8.dp))
             Text(
