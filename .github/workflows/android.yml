@@ -70,5 +70,14 @@ jobs:
         with:
           api-level: 30
           arch: x86_64
-          script: cd android && ./gradlew connectedDebugAndroidTest
-          
+          target: default
+          cores: 2
+          emulator-boot-timeout: 600
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          # Give the emulator time to fully settle after boot before Gradle
+          # tries to query the API level — prevents ShellCommandUnresponsiveException.
+          script: |
+            sleep 15
+            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
+            cd android && ./gradlew connectedDebugAndroidTest
