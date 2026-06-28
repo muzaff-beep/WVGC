@@ -99,16 +99,90 @@ fn vd_to_svg(vd_xml: &str) -> Result<String, ConversionError> {
             .or_else(|| node.attribute("fillColor"))
             .map(aarrggbb_to_svg_fill)
             .unwrap_or_else(|| ("none".to_string(), 1.0));
-        paths.push_str(&format!(
-            "<path d=\"{}\" fill=\"{}\" fill-opacity=\"{}\"/>",
-            d, fill.0, fill.1
-        ));
+
+        // Accumulate the transform from every ancestor <group>. VectorDrawable
+        // groups carry translateX/translateY/scaleX/scaleY/rotation, and a path's
+        // pathData is relative to its group origin. Without re-applying these,
+        // every path renders at (0,0) and the preview is scrambled/cropped.
+        let transform = ancestor_group_transform(&node, android);
+
+        if transform.is_empty() {
+            paths.push_str(&format!(
+                "<path d=\"{}\" fill=\"{}\" fill-opacity=\"{}\"/>",
+                d, fill.0, fill.1
+            ));
+        } else {
+            paths.push_str(&format!(
+                "<g transform=\"{}\"><path d=\"{}\" fill=\"{}\" fill-opacity=\"{}\"/></g>",
+                transform, d, fill.0, fill.1
+            ));
+        }
     }
 
     Ok(format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\">{}</svg>",
         vw, vh, paths
     ))
+}
+
+/// Walk up from a <path> through all ancestor <group> elements and build an
+/// SVG transform string that reproduces the VectorDrawable group transforms.
+/// Outermost group is applied first (leftmost in the string) so nesting composes
+/// the same way Android applies it.
+fn ancestor_group_transform(node: &roxmltree::Node, android: &str) -> String {
+    let mut groups: Vec<String> = Vec::new();
+    let mut cur = node.parent();
+    while let Some(n) = cur {
+        if n.has_tag_name("group") {
+            let mut parts: Vec<String> = Vec::new();
+
+            let tx = group_attr_f32(&n, android, "translateX");
+            let ty = group_attr_f32(&n, android, "translateY");
+            if tx != 0.0 || ty != 0.0 {
+                parts.push(format!("translate({},{})", tx, ty));
+            }
+
+            let px = group_attr_f32(&n, android, "pivotX");
+            let py = group_attr_f32(&n, android, "pivotY");
+
+            let rot = group_attr_f32(&n, android, "rotation");
+            if rot != 0.0 {
+                if px != 0.0 || py != 0.0 {
+                    parts.push(format!("rotate({},{},{})", rot, px, py));
+                } else {
+                    parts.push(format!("rotate({})", rot));
+                }
+            }
+
+            let sx = group_attr_f32_default(&n, android, "scaleX", 1.0);
+            let sy = group_attr_f32_default(&n, android, "scaleY", 1.0);
+            if sx != 1.0 || sy != 1.0 {
+                parts.push(format!("scale({},{})", sx, sy));
+            }
+
+            if !parts.is_empty() {
+                groups.push(parts.join(" "));
+            }
+        }
+        cur = n.parent();
+    }
+    // groups is innermost-first; reverse so outermost is applied first (SVG left-to-right).
+    groups.reverse();
+    groups.join(" ")
+}
+
+fn group_attr_f32(n: &roxmltree::Node, android: &str, name: &str) -> f32 {
+    n.attribute((android, name))
+        .or_else(|| n.attribute(name))
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(0.0)
+}
+
+fn group_attr_f32_default(n: &roxmltree::Node, android: &str, name: &str, default: f32) -> f32 {
+    n.attribute((android, name))
+        .or_else(|| n.attribute(name))
+        .and_then(|s| s.parse::<f32>().ok())
+        .unwrap_or(default)
 }
 
 /// #AARRGGBB -> (#RRGGBB, alpha 0..1) for SVG.
