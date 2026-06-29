@@ -48,7 +48,6 @@ import com.watermelon.converter.ui.components.FolderIcon
 import com.watermelon.converter.ui.components.VectorPropertiesPanel
 import com.watermelon.converter.ui.components.WatermelonLoader
 import com.watermelon.converter.ui.theme.*
-import com.watermelon.converter.util.StoragePermission
 import com.watermelon.converter.viewmodel.FileManagerViewModel
 import com.watermelon.converter.viewmodel.PreviewState
 import com.watermelon.converter.viewmodel.TreeRow
@@ -72,7 +71,6 @@ fun FilesScreen(
     settingsVm: com.watermelon.converter.viewmodel.SettingsViewModel = viewModel(),
 ) {
     val settings by settingsVm.settings.collectAsState()
-    val hasPermission by vm.hasPermission.collectAsState()
     val rows by vm.rows.collectAsState()
     val filter by vm.filter.collectAsState()
     val marked by vm.marked.collectAsState()
@@ -104,11 +102,6 @@ fun FilesScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    if (!hasPermission) {
-        PermissionGate()
-        return
     }
 
     Box(Modifier.fillMaxSize().background(androidx.compose.material3.MaterialTheme.colorScheme.background)) {
@@ -786,24 +779,4 @@ private fun RenameDialog(count: Int, onConfirm: (String) -> Unit, onDismiss: () 
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun PermissionGate() {
-    val ctx = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
-    Box(Modifier.fillMaxSize().background(androidx.compose.material3.MaterialTheme.colorScheme.background).padding(32.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Storage access needed", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DeepNavy)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "The file manager needs access to browse your storage for SVG and XML files.",
-                textAlign = TextAlign.Center,
-                color = SlateGray,
-            )
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = { launcher.launch(StoragePermission.requestIntent(ctx)) },
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = FreshTeal),
-            ) { Text("Grant access", fontWeight = FontWeight.Bold) }
-        }
-    }
-}
+

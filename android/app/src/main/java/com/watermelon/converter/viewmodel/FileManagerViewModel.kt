@@ -70,7 +70,7 @@ class FileManagerViewModel(
     private val _hasPermission = MutableStateFlow(StoragePermission.isGranted())
     val hasPermission: StateFlow<Boolean> = _hasPermission.asStateFlow()
 
-    private val _currentDir = MutableStateFlow(repo.defaultRoot())
+    private val _currentDir = MutableStateFlow(repo.defaultRoot(getApplication()))
     val currentDir: StateFlow<File> = _currentDir.asStateFlow()
 
     private val _filter = MutableStateFlow(TypeFilter())
@@ -128,21 +128,13 @@ class FileManagerViewModel(
     private val containsCache = HashMap<String, Boolean>()
 
     init {
-        if (_hasPermission.value) {
-            WvgcPaths.ensureDirs()
-            rebuild()
-        }
+        // App-scoped storage requires no permission — always accessible.
+        WvgcPaths.ensureDirs(getApplication())
+        rebuild()
     }
 
-    /** Call after returning from the system "All files access" settings screen. */
-    fun recheckPermission() {
-        val granted = StoragePermission.isGranted()
-        _hasPermission.value = granted
-        if (granted) {
-            WvgcPaths.ensureDirs()
-            rebuild()
-        }
-    }
+    /** No-op: permission no longer required for app-scoped storage. */
+    fun recheckPermission() { /* no-op */ }
 
     fun setFilter(showSvg: Boolean, showXml: Boolean) {
         _filter.value = TypeFilter(showSvg, showXml)

@@ -14,11 +14,8 @@ pub fn emit(svg: &NormalizedSvg) -> String {
     let mut s = String::new();
     s.push_str(&format!("<vector xmlns:android=\"{NS}\"\n"));
     s.push_str(&format!("    xmlns:aapt=\"{AAPT}\"\n"));
-    // android:width/height = physical display size of the drawable.
-    // This is INDEPENDENT of the viewport coordinate space.
-    // 24dp is the Material Design icon baseline — scales correctly at all
-    // densities. The viewport dimensions preserve the original coordinate
-    // space so all path coordinates remain valid.
+    // android:width/height = physical display size, independent of viewport.
+    // 24dp is the Material Design icon baseline; viewport preserves coordinate space.
     s.push_str("    android:width=\"24dp\"\n");
     s.push_str("    android:height=\"24dp\"\n");
     s.push_str(&format!("    android:viewportWidth=\"{}\"\n", fmt_num(svg.viewport_w)));
@@ -125,5 +122,4 @@ fn emit_stops(stops: &[GradientStop], level: usize, s: &mut String) {
         s.push_str(&format!("{pad}<item android:offset=\"{}\" android:color=\"{}\"/>\n",
             fmt_num(st.offset), st.color));
     }
-    }
-    
+}

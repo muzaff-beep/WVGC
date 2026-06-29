@@ -5,7 +5,7 @@
 
 package com.watermelon.converter.data.files
 
-import android.os.Environment
+import android.content.Context
 import com.watermelon.converter.logging.AppLogger
 import java.io.File
 
@@ -16,8 +16,8 @@ import java.io.File
  */
 class RealFileRepository {
 
-    /** The default starting point: shared storage root. */
-    fun defaultRoot(): File = Environment.getExternalStorageDirectory()
+    /** The default starting point: app-scoped external files dir. No permission required. */
+    fun defaultRoot(ctx: Context): File = com.watermelon.converter.util.WvgcPaths.fileManagerRoot(ctx)
 
     fun listChildren(dir: File): List<FileNode> {
         val out = ArrayList<FileNode>()

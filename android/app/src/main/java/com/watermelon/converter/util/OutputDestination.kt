@@ -33,7 +33,7 @@ object OutputDestination {
         return if (destinationUri != null) {
             writeToSaf(ctx, bytes, fileName, Uri.parse(destinationUri), mime)
         } else {
-            writeToFile(bytes, fileName)
+            writeToFile(ctx, bytes, fileName)
         }
     }
 
@@ -56,8 +56,8 @@ object OutputDestination {
         return doc.uri.toString()
     }
 
-    private fun writeToFile(bytes: ByteArray, fileName: String): String {
-        val dir = WvgcPaths.batchFilesDir
+    private fun writeToFile(ctx: Context, bytes: ByteArray, fileName: String): String {
+        val dir = WvgcPaths.batchFilesDir(ctx)
         val file = File(dir, fileName)
         file.writeBytes(bytes)
         AppLogger.log("OutputDestination", "wrote ${file.path}")
@@ -69,7 +69,7 @@ object OutputDestination {
      * Returns null if using the default (so Settings can show "Default (Watermelon/...)").
      */
     fun displayLabel(ctx: Context, destinationUri: String?): String {
-        if (destinationUri == null) return WvgcPaths.batchFilesDir.absolutePath
+        if (destinationUri == null) return WvgcPaths.batchFilesDir(ctx).absolutePath
         return try {
             val doc = DocumentFile.fromTreeUri(ctx, Uri.parse(destinationUri))
             doc?.name ?: destinationUri

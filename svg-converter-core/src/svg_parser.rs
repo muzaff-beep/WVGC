@@ -378,5 +378,4 @@ fn attr_f32(el: &roxmltree::Node, name: &str) -> Option<f32> {
         let t = s.trim_end_matches("px").trim();
         t.parse().ok()
     })
-                                       }
-       
+}

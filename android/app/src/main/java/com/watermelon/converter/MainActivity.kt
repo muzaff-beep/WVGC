@@ -58,7 +58,6 @@ class MainActivity : ComponentActivity() {
 
 object Routes {
     const val PAGER = "pager"          // Home + Files + Settings (swipeable)
-    const val IMPORT = "import"
     const val PREVIEW = "preview"
     const val BATCH = "batch"
     const val EXPORT = "export"
@@ -71,7 +70,6 @@ fun AppNavHost(settingsVm: SettingsViewModel) {
     val nav = rememberNavController()
     NavHost(navController = nav, startDestination = Routes.PAGER) {
         composable(Routes.PAGER) { MainPager(nav, settingsVm) }
-        composable(Routes.IMPORT) { ImportScreen(nav) }
         composable(Routes.PREVIEW) { PreviewScreen(nav) }
         composable(Routes.BATCH) { BatchScreen(nav) }
         composable(Routes.EXPORT) { ExportScreen(nav) }

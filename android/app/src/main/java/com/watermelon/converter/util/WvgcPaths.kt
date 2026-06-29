@@ -5,26 +5,35 @@
 
 package com.watermelon.converter.util
 
-import android.os.Environment
+import android.content.Context
 import java.io.File
 
 /**
- * Unified output locations. Regardless of how a conversion happens (single
- * import, ZIP batch, or a marked-files custom batch from the file manager),
- * results land in one of these two well-known folders so the user always
- * knows where to find converted files.
+ * Unified output locations within the app's own external files directory.
+ * No special storage permission is required — the app always has full access
+ * to its own scoped storage at Android/data/<package>/files/.
+ *
+ * Users can browse this directory via Files app or ADB.
+ * Files are removed when the app is uninstalled (expected for a converter).
  */
 object WvgcPaths {
 
-    private val root: File
-        get() = File(Environment.getExternalStorageDirectory(), "Watermelon/VectorConverter")
+    /** Root: Android/data/com.watermelon.converter/files/VectorConverter/ */
+    fun root(ctx: Context): File =
+        File(ctx.getExternalFilesDir(null), "VectorConverter")
 
-    val batchFilesDir: File get() = File(root, "Batch_files").apply { mkdirs() }
-    val isolatedFilesDir: File get() = File(root, "Isolated_files").apply { mkdirs() }
+    fun batchFilesDir(ctx: Context): File =
+        File(root(ctx), "Batch_files").apply { mkdirs() }
 
-    /** Ensure both output directories exist (call once after permission grant). */
-    fun ensureDirs() {
-        batchFilesDir
-        isolatedFilesDir
+    fun isolatedFilesDir(ctx: Context): File =
+        File(root(ctx), "Isolated_files").apply { mkdirs() }
+
+    /** Ensure both output directories exist. Call once on app start. */
+    fun ensureDirs(ctx: Context) {
+        batchFilesDir(ctx)
+        isolatedFilesDir(ctx)
     }
+
+    /** The browsable root for the file manager. */
+    fun fileManagerRoot(ctx: Context): File = root(ctx).apply { mkdirs() }
 }
