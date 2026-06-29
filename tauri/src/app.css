@@ -1,0 +1,54 @@
+/* Watermelon Vector Converter — Design tokens matching Android app */
+:root {
+  --deep-navy:       #1D3557;
+  --watermelon-red:  #E63946;
+  --fresh-teal:      #2A9D8F;
+  --off-white:       #F8F9FA;
+  --slate-gray:      #6C757D;
+  --pure-white:      #FFFFFF;
+  --surface:         #F0F4F8;
+  --border:          #DDE3EA;
+  --shadow:          0 2px 8px rgba(0,0,0,.08);
+  --radius:          10px;
+  --font:            "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font);
+  background: var(--off-white);
+  color: var(--deep-navy);
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: var(--font);
+}
+
+button:focus-visible { outline: 2px solid var(--fresh-teal); outline-offset: 2px; }
+
+/* Dark mode — applied via .dark on the shell */
+.dark {
+  --deep-navy:  #E8EDF2;   /* text becomes light */
+  --off-white:  #15181C;   /* bg becomes dark    */
+  --surface:    #1E232A;
+  --border:     #2D343D;
+  --slate-gray: #9AA5B1;
+  --pure-white: #1A1E24;
+}
+
+.dark .content { background: var(--off-white); }
+.dark :global(.report-card),
+.dark :global(.preview-tile),
+.dark :global(.xml-card),
+.dark :global(.chip),
+.dark :global(.dropzone) {
+  background: var(--surface);
+}
+.dark :global(.xml-body) { color: #C8D2DC; }

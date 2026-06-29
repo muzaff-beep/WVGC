@@ -1,6 +1,9 @@
 // Watermelon Vector Converter — Copyright (c) 2026 Suhail Muzaffari. All rights reserved.
-// Tauri builder + command registration (Module B desktop side).
+// Tauri entry point — delegates to the shared builder in lib.rs.
+
+// Prevents an extra console window on Windows in release.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    // TODO(B): tauri::Builder::default().invoke_handler(...).run(...)
+    wvgc_desktop::run();
 }
