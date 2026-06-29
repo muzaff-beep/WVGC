@@ -194,4 +194,4 @@ fn aarrggbb_to_svg_fill(c: &str) -> (String, f32) {
     } else {
         (c.to_string(), 1.0)
     }
-}
+            }
