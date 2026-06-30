@@ -128,4 +128,7 @@ jobs:
           script: |
             sleep 15
             adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
+            sleep 5
+            adb shell 'while [[ -z $(getprop ro.build.version.sdk) ]]; do sleep 2; done'
+            adb shell input keyevent 82
             cd android && ./gradlew connectedDebugAndroidTest
