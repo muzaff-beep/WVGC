@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Suhail Muzaffari. All rights reserved.
-# Build the Android APK: Rust core (.so via cargo-ndk) + Gradle assemble + tests.
+# Build pipeline: Rust core (.so via cargo-ndk) + Gradle assemble + sign + test.
 name: android
 
 on:
@@ -31,7 +31,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build Rust core (.so for each ABI)
+      - name: Build Rust core (.so for arm64-v8a)
         working-directory: svg-converter-core
         run: |
           cargo ndk -t arm64-v8a \
@@ -41,15 +41,29 @@ jobs:
         working-directory: android
         run: ./gradlew testDebugUnitTest
 
-      - name: Gradle — assemble debug APK
-        working-directory: android
-        run: ./gradlew assembleDebug
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode \
+            > android/app/digital_raven_release.jks
 
-      - name: Upload APK
+      - name: Gradle — assemble signed release APK
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=app/digital_raven_release.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+
+      - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: wvgc-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: wvgc-release-apk
+          path: android/app/build/outputs/apk/release/*.apk
 
   # Instrumented tests (real JNI + Compose UI) on an emulator.
   instrumented:
@@ -75,8 +89,6 @@ jobs:
           emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          # Give the emulator time to fully settle after boot before Gradle
-          # tries to query the API level — prevents ShellCommandUnresponsiveException.
           script: |
             sleep 15
             adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
