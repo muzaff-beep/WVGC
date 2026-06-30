@@ -72,7 +72,7 @@ jobs:
       - name: List bundle outputs
         shell: bash
         run: |
-          find tauri/src-tauri/target/release/bundle -type f \( \
+          find target/release/bundle -type f \( \
             -name "*.exe" -o -name "*.msi" -o \
             -name "*.AppImage" -o -name "*.deb" -o \
             -name "*.dmg" \) | sort
@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p /tmp/release-artifacts
-          find tauri/src-tauri/target/release/bundle -type f \( -name "*.exe" -o -name "*.msi" \) \
+          find target/release/bundle -type f \( -name "*.exe" -o -name "*.msi" \) \
             -exec cp {} /tmp/release-artifacts/ \;
           ls /tmp/release-artifacts/
 
@@ -90,7 +90,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           mkdir -p /tmp/release-artifacts
-          find tauri/src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) \
+          find target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) \
             -exec cp {} /tmp/release-artifacts/ \;
           ls /tmp/release-artifacts/
 
@@ -98,7 +98,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           mkdir -p /tmp/release-artifacts
-          find tauri/src-tauri/target/release/bundle -type f -name "*.dmg" \
+          find target/release/bundle -type f -name "*.dmg" \
             -exec cp {} /tmp/release-artifacts/ \;
           ls /tmp/release-artifacts/
 
