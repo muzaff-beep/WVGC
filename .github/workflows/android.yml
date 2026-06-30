@@ -44,7 +44,7 @@ jobs:
       - name: Decode keystore
         run: |
           echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode \
-            > android/app/digital_raven_release.jks
+            > $GITHUB_WORKSPACE/digital_raven_release.jks
 
       - name: Gradle — assemble signed release APK
         working-directory: android
@@ -54,7 +54,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=app/digital_raven_release.jks \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/digital_raven_release.jks \
             -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
             -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
             -Pandroid.injected.signing.key.password=$KEY_PASSWORD
