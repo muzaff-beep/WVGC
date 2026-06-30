@@ -1,5 +1,5 @@
 # Copyright (c) 2026 Suhail Muzaffari. All rights reserved.
-# Builds the Tauri desktop app for Windows, Linux, macOS + GitHub Release.
+# Builds Tauri desktop app for Windows, Linux, macOS + GitHub Releases.
 name: desktop
 
 on:
@@ -18,22 +18,14 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            label: windows
+            label: Windows
             bundles: nsis,msi
-            artifacts: |
-              tauri/src-tauri/target/release/bundle/nsis/*.exe
-              tauri/src-tauri/target/release/bundle/msi/*.msi
           - os: ubuntu-22.04
-            label: linux
+            label: Linux
             bundles: appimage,deb
-            artifacts: |
-              tauri/src-tauri/target/release/bundle/appimage/*.AppImage
-              tauri/src-tauri/target/release/bundle/deb/*.deb
           - os: macos-latest
-            label: macos
+            label: macOS
             bundles: dmg
-            artifacts: |
-              tauri/src-tauri/target/release/bundle/dmg/*.dmg
 
     runs-on: ${{ matrix.os }}
 
@@ -78,19 +70,58 @@ jobs:
           VERSION=$(python3 -c "import json; print(json.load(open('tauri/src-tauri/tauri.conf.json'))['version'])")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: List bundle outputs
+        shell: bash
+        run: |
+          find tauri/src-tauri/target/release/bundle -type f \( \
+            -name "*.exe" -o -name "*.msi" -o \
+            -name "*.AppImage" -o -name "*.deb" -o \
+            -name "*.dmg" \) | sort
+
+      - name: Collect artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          mkdir -p /tmp/release-artifacts
+          find tauri/src-tauri/target/release/bundle -type f \( -name "*.exe" -o -name "*.msi" \) \
+            -exec cp {} /tmp/release-artifacts/ \;
+          ls /tmp/release-artifacts/
+
+      - name: Collect artifacts (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          mkdir -p /tmp/release-artifacts
+          find tauri/src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" \) \
+            -exec cp {} /tmp/release-artifacts/ \;
+          ls /tmp/release-artifacts/
+
+      - name: Collect artifacts (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p /tmp/release-artifacts
+          find tauri/src-tauri/target/release/bundle -type f -name "*.dmg" \
+            -exec cp {} /tmp/release-artifacts/ \;
+          ls /tmp/release-artifacts/
+
       - name: Create GitHub Release (${{ matrix.label }})
         uses: softprops/action-gh-release@v2
         with:
           tag_name: desktop-v${{ steps.version.outputs.version }}-${{ matrix.label }}
-          name: "Watermelon Vector Converter ${{ steps.version.outputs.version }} — ${{ matrix.label }}"
+          name: "Watermelon Vector Converter ${{ steps.version.outputs.version }} — Desktop (${{ matrix.label }})"
           body: |
             ## Watermelon Vector Converter — Desktop (${{ matrix.label }})
 
-            ### Install
-            - **Windows**: download and run the `.exe` (NSIS installer) or `.msi`
-            - **Linux**: download the `.AppImage` (portable, no install needed) or `.deb`
-            - **macOS**: download and open the `.dmg`
-
             Built with Tauri v2 + Svelte. Shared Rust conversion core with the Android app.
-          files: ${{ matrix.artifacts }}
+
+            ### Install
+            - **Windows**: run the `.exe` installer or `.msi`
+            - **Linux**: run the `.AppImage` (no install needed) or install the `.deb`
+            - **macOS**: open the `.dmg` and drag to Applications
+
+            ### Features
+            - Single SVG conversion with side-by-side preview
+            - Batch ZIP conversion with per-file progress
+            - Settings: preview resolution, dark mode
+            - Fully offline — no network requests during conversion
+          files: /tmp/release-artifacts/*
           fail_on_unmatched_files: true
