@@ -27,9 +27,7 @@
         {
           "identifier": "main-capability",
           "description": "Main window permissions",
-          "windows": [
-            "main"
-          ],
+          "windows": ["main"],
           "permissions": [
             "core:default",
             "dialog:allow-open",
@@ -43,44 +41,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "nsis",
-      "msi",
-      "appimage",
-      "deb",
-      "dmg"
-    ],
+    "targets": "all",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": ""
-    },
-    "linux": {
-      "appimage": {
-        "productName": "Watermelon Vector Converter",
-        "identifier": "com.watermelon.converter"
-      },
-      "deb": {
-        "productName": "Watermelon Vector Converter",
-        "identifier": "com.watermelon.converter"
-      }
-    },
-    "macos": {
-      "dmg": {
-        "productName": "Watermelon Vector Converter",
-        "identifier": "com.watermelon.converter"
-      },
-      "entitlements": null,
-      "hardenedRuntime": true,
-      "gatekeeper": null,
-      "signing": null
-    }
+    ]
   }
 }
