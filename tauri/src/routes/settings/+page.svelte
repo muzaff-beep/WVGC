@@ -1,17 +1,11 @@
-<!-- Settings: preview size + dark mode -->
 <script>
   import { settings } from "../../lib/settings";
   import WatermelonButton from "../../components/WatermelonButton.svelte";
 
   const SIZES = [256, 400, 512, 768];
 
-  function setPreviewSize(px) {
-    settings.update((s) => ({ ...s, previewSize: px }));
-  }
-
-  function toggleDark() {
-    settings.update((s) => ({ ...s, darkMode: !s.darkMode }));
-  }
+  function setPreviewSize(px) { settings.update((s) => ({ ...s, previewSize: px })); }
+  function toggleDark()       { settings.update((s) => ({ ...s, darkMode: !s.darkMode })); }
 </script>
 
 <section class="settings">
@@ -26,9 +20,7 @@
           class="chip"
           class:active={$settings.previewSize === px}
           on:click={() => setPreviewSize(px)}
-        >
-          {px}px
-        </button>
+        >{px}px</button>
       {/each}
     </div>
   </div>
@@ -49,39 +41,39 @@
 </section>
 
 <style>
-  .settings { max-width: 600px; margin: 0 auto; }
-  .page-title { font-size: 22px; font-weight: 700; color: var(--deep-navy); margin-bottom: 28px; }
+  .settings { max-width: 560px; }
+  .page-title { font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 28px; }
 
-  .setting-group { margin-bottom: 32px; }
-  .group-title { font-size: 16px; font-weight: 600; color: var(--deep-navy); margin-bottom: 4px; }
-  .group-sub { font-size: 13px; color: var(--slate-gray); margin-bottom: 14px; }
+  .setting-group { margin-bottom: 30px; }
+  .group-title { font-size: 15px; font-weight: 600; color: var(--text-main); margin-bottom: 4px; }
+  .group-sub { font-size: 13px; color: var(--text-sub); margin-bottom: 14px; }
 
-  .chips { display: flex; gap: 10px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
   .chip {
-    padding: 8px 18px;
+    padding: 7px 16px;
     border-radius: 50px;
     border: 1.5px solid var(--border);
-    background: #fff;
-    color: var(--deep-navy);
-    font-size: 14px;
+    background: var(--card-bg);
+    color: var(--text-main);
+    font-size: 13px;
     font-weight: 500;
     transition: all .15s;
   }
   .chip.active { background: var(--fresh-teal); color: #fff; border-color: var(--fresh-teal); }
-  .chip:not(.active):hover { border-color: var(--fresh-teal); }
+  .chip:not(.active):hover { border-color: var(--fresh-teal); color: var(--fresh-teal); }
 
   .toggle { display: flex; align-items: center; gap: 12px; cursor: pointer; }
   .toggle input { display: none; }
   .toggle-track {
-    width: 46px; height: 26px; border-radius: 50px;
+    width: 44px; height: 24px; border-radius: 50px;
     background: var(--border); position: relative; transition: background .2s;
   }
   .toggle input:checked + .toggle-track { background: var(--fresh-teal); }
   .toggle-thumb {
     position: absolute; top: 3px; left: 3px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25);
   }
   .toggle input:checked + .toggle-track .toggle-thumb { transform: translateX(20px); }
-  .toggle-label { font-size: 14px; color: var(--deep-navy); font-weight: 500; }
+  .toggle-label { font-size: 14px; color: var(--text-main); font-weight: 500; }
 </style>

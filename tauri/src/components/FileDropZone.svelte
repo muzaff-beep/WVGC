@@ -1,9 +1,7 @@
-<!-- Drag-and-drop zone for SVG or ZIP files -->
 <script>
   import { createEventDispatcher } from "svelte";
   const dispatch = createEventDispatcher();
-
-  export let accept = ".svg,.xml";
+  export let accept = ".svg";
 
   let dragOver = false;
 
@@ -37,11 +35,9 @@
   role="region"
   aria-label="Drop file here"
 >
-  <div class="drop-inner">
-    <span class="drop-icon">📂</span>
-    <p class="drop-label">Drop {accept === ".zip" ? "a ZIP" : "an SVG"} here</p>
-    <p class="drop-sub">or use the button below</p>
-  </div>
+  <span class="drop-icon">📂</span>
+  <p class="drop-label">Drop {accept === ".zip" ? "a ZIP" : "an SVG"} here</p>
+  <p class="drop-sub">or use the button below</p>
 </div>
 
 <style>
@@ -49,19 +45,19 @@
     border: 2px dashed var(--border);
     border-radius: var(--radius);
     background: var(--surface);
-    padding: 48px 32px;
+    padding: 36px 20px;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     transition: border-color .2s, background .2s;
     cursor: default;
   }
 
   .dropzone.drag-over {
     border-color: var(--fresh-teal);
-    background: #edf9f7;
+    background: color-mix(in srgb, var(--fresh-teal) 8%, var(--surface));
   }
 
-  .drop-icon { font-size: 40px; display: block; margin-bottom: 12px; }
-  .drop-label { font-size: 16px; font-weight: 600; color: var(--deep-navy); margin-bottom: 4px; }
-  .drop-sub { font-size: 13px; color: var(--slate-gray); }
+  .drop-icon { font-size: 32px; display: block; margin-bottom: 10px; }
+  .drop-label { font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 3px; }
+  .drop-sub { font-size: 12px; color: var(--text-sub); }
 </style>

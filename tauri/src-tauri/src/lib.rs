@@ -14,6 +14,7 @@ pub fn run() {
             commands::render_svg_preview,
             commands::render_vd_preview,
             commands::convert_zip,
+            commands::open_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Watermelon Vector Converter");

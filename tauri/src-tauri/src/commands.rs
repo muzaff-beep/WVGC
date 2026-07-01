@@ -103,3 +103,29 @@ pub fn convert_zip(
     );
     result.map_err(Into::into)
 }
+
+/// Open a URL in the system default browser.
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), ConversionErrorDto> {
+    // Use the opener crate via tauri-plugin-shell if available,
+    // otherwise fall back to std::process::Command.
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd")
+        .args(["/c", "start", "", &url])
+        .spawn()
+        .map_err(|e| ConversionErrorDto { code: 1099, message: e.to_string() })?;
+
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| ConversionErrorDto { code: 1099, message: e.to_string() })?;
+
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| ConversionErrorDto { code: 1099, message: e.to_string() })?;
+
+    Ok(())
+}
